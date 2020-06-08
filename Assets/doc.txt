@@ -1,0 +1,7 @@
+2020/6/8
+梳理了World->Map->Node的关系
+不太明确为什么要使用Node，而不是Map.id:int[];
+发现重复绘制逻辑，在使用TextureShower的时候，由于修改Node.id时没有去重，导致会在值与id相同仍然绘制
+由于会替换时会生成新的Node，造成了大量的GC
+排查了卡顿原因后，发现是由于太多的Nodeid为1，造成反复对周边Node判定，导致卡顿，
+因此，尝试将Node替换成Mapid
