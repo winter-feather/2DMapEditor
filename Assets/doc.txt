@@ -3,5 +3,6 @@
 不太明确为什么要使用Node，而不是Map.id:int[];
 发现重复绘制逻辑，在使用TextureShower的时候，由于修改Node.id时没有去重，导致会在值与id相同仍然绘制
 由于会替换时会生成新的Node，造成了大量的GC
-排查了卡顿原因后，发现是由于太多的Nodeid为1，造成反复对周边Node判定，导致卡顿，
-因此，尝试将Node替换成Mapid
+排查了卡顿原因后，发现是由于太多的Nodeid为1，造成反复对周边Node判定，即去重问题和Node类型导致卡顿，
+因此，尝试将Node替换成Mapid，由Ground的处理的Update交由Map来处理，可以区别id后来执行不同的update，而map又需要分化为不同的层，所以Update中的内容将由后期注入到onUpdate中
+不太明确MapContrllor关联性
