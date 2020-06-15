@@ -6,3 +6,7 @@
 排查了卡顿原因后，发现是由于太多的Nodeid为1，造成反复对周边Node判定，即去重问题和Node类型导致卡顿，
 因此，尝试将Node替换成Mapid，由Ground的处理的Update交由Map来处理，可以区别id后来执行不同的update，而map又需要分化为不同的层，所以Update中的内容将由后期注入到onUpdate中
 不太明确MapContrllor关联性
+
+2020/6/15
+取消了Node类型，用使用Map.node:int[,]
+在Map里加入了Update处理Node的update逻辑
