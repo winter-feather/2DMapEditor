@@ -6,95 +6,54 @@ using System;
 
 public class MainManager : MonoBehaviour
 {
-    World world;
     public static MainManager m_Instance;
-    
-    public Color[] selectColor;
+    World world;
     public int selectInt;
-    public Texture2D brush;
+    Color[] selectColor;
     public Vector2Int unit;
+    public Texture2D brush;
     public Material oMateral;
+
     //public Texture2D temperatrueTex;
     //public Texture2D brightnessTex;
     //public GameObject brightnessShower;
     //public GameObject temperatureShower;
-    //Map grouds;
-    //MapShower groudShower;
-    //MapController groundController;
-    //public FileManager fileManager;
-    public int groundId;
-    public float groundUpdateTime, groundUpdateCD = 1;
+
     public int[,] tempSave;
-    Vector2Int size = new Vector2Int(400, 400); //Vector2Int.one * 256;
+    Vector2Int size = new Vector2Int(10, 24); //Vector2Int.one * 256;
     List<Room> roomList;
 
-    public void AddSelectID()
-    {
-        selectInt++;
-        selectInt = Mathf.Clamp(selectInt, 0, 6);
-        selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
-    }
-
-    public void SubSelectID()
-    {
-        selectInt--;
-        selectInt = Mathf.Clamp(selectInt, 0, 6);
-        selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
-    }
-
+    public float refushCD = 1;
+    public float refushTime;
     private void Awake()
     {
         m_Instance = this;
-        unit = new Vector2Int(32,32);
+        unit = new Vector2Int(32, 32);
     }
 
     // Use this for initialization
     void Start()
     {
-
-
         selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
-        //temperatrueTex = new Texture2D(256, 256);
-        //brightnessTex = new Texture2D(256, 256);
-        //brightnessShower.GetComponent<MeshRenderer>().material.mainTexture = brightnessTex;
-        //temperatureShower.GetComponent<MeshRenderer>().material.mainTexture = temperatrueTex;
         world = new World();
         world.grouds = new Map(Vector2Int.zero, size);
+        world.grouds.World = world;
         world.grouds.Controller = new MapController(Vector2Int.zero, size);
-        world.grouds.Shower = new MapTextureShower(world.grouds, new Vector2Int(unit.x,unit.y), (v)=> {
+        world.grouds.Shower = new MapTextureShower(world.grouds, new Vector2Int(unit.x, unit.y), (v) =>
+        {
             selectInt = v;
             selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
-            return MainManager.m_Instance.selectColor;  },oMateral);
-        //MainManager.m_Instance.selectColor; new Color[] { Color.black };
-        //new MapTextureShower(world.grouds, null);
-        world.grouds.World = world;
-        world.grouds.InitAllNode(() => { return new Ground(0, world.grouds); });
-
-        //world.plants = new Map(Vector2Int.zero, size);
-        //world.plants.Shower = new MapShower(world.plants, PlantShower);
-        //world.plants.InitAllNode(() => { return new Plant(0); });
-        //world.plants.World = world;
-
-        //world.temperature = new Map(Vector2Int.zero, size);
-        //world.temperature.Shower = new MapShower(world.temperature, TemperaturShower);
-        //world.temperature.InitAllNode(() => { return new Temperature(100); });
-        //world.temperature.onAddMapNode += (e) => { e.Update(); };
-        //TemperatureUpdateAction();
-        //world.temperature.World = world;
-
-        //world.birghtness = new Map(Vector2Int.zero, size);
-        //world.birghtness.Shower = new MapShower(world.birghtness, BrightShower);
-        //world.birghtness.onAddMapNode += (e) => { e.Update(); };
-        //world.birghtness.InitAllNode(() => { return new Brightness(0); });
-        //world.birghtness.World = world;
-
+            return MainManager.m_Instance.selectColor;
+        }, oMateral);
+        world.grouds.InitAllNode(1);
+        world.grouds.onUpdate += GroundUpdate;
         //world.wallObjects = new Map(Vector2Int.zero, size);
         //world.wallObjects.Shower = new MapNodeShower(world.wallObjects, WallShower);
         //world.wallObjects.onAddMapNode += (IMapable e) =>
         //{
-
         //    RoomCheck(e.Index);
         //};
+
         //world.wallObjects.onRemoveMapNode += (IMapable e) =>
         //{
         //    if (e != null)
@@ -108,7 +67,6 @@ public class MainManager : MonoBehaviour
         //        if (r.Count <= 100 && r.Count > 4) { Room.CreateRoom(r); }
         //    }
         //};
-
         //roomList = new List<Room>();
         //Room.onCreateRoom += (Room r) =>
         //{
@@ -118,7 +76,6 @@ public class MainManager : MonoBehaviour
         //        world.plants.SetNode(item, new Plant(1));
         //    }
         //};
-
         //Room.onDeleteRoom += (Room r) =>
         //{
         //    foreach (var item in r.roomNodes)
@@ -127,17 +84,27 @@ public class MainManager : MonoBehaviour
         //    }
         //    roomList.Remove(r);
         //};
-
-
+    }
+    public void AddSelectID()
+    {
+        selectInt++;
+        selectInt = Mathf.Clamp(selectInt, 0, 6);
+        selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
     }
 
+    public void SubSelectID()
+    {
+        selectInt--;
+        selectInt = Mathf.Clamp(selectInt, 0, 6);
+        selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
+    }
     void RemoveRoomCheck(Vector2Int pos)
     {
         if (pos.x < 0) return;
         if (pos.y < 0) return;
         if (pos.x >= size.x) return;
         if (pos.y >= size.y) return;
-        if (world.wallObjects.GetNode(pos) != null) return;
+        if (world.wallObjects.GetNode(pos) != Map.MAP_NULL) return;
 
         Room tr = null;
         foreach (var item in roomList)
@@ -156,7 +123,6 @@ public class MainManager : MonoBehaviour
 
     void RoomCheck(Vector2Int pos)
     {
-        //Debug.Log(node);
         Vector2Int up = pos + Vector2Int.up;
         Vector2Int down = pos + Vector2Int.down;
         Vector2Int right = pos + Vector2Int.right;
@@ -186,7 +152,7 @@ public class MainManager : MonoBehaviour
         if (pos.x >= size.x) return;
         if (pos.y >= size.y) return;
 
-        if (world.wallObjects.GetNode(pos) != null) return;
+        if (world.wallObjects.GetNode(pos) != Map.MAP_NULL) return;
         r.Add(pos);
         Vector2Int up = pos + Vector2Int.up;
         Vector2Int down = pos + Vector2Int.down;
@@ -198,49 +164,6 @@ public class MainManager : MonoBehaviour
         RoomCheck(left, r);
     }
 
-    //GameObject WallShower(IMapable n)
-    //{
-    //    GameObject g;
-    //    switch (n.ID)
-    //    {
-    //        case 0:
-    //            return null;
-    //        case 1:
-    //            return GameObject.Instantiate<GameObject>(fileManager.walls[n.ID]);
-    //        default: return null;
-    //    }
-    //}
-
-    GameObject GroundShower(IMapable n)
-    {
-        GameObject g;
-        switch (n.ID)
-        {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-               // return GameObject.Instantiate<GameObject>(fileManager.grounds[n.ID]);
-            default: return null;
-        }
-    }
-
-    //GameObject TemperaturShower(IMapable n)
-    //{
-    //    return GameObject.Instantiate<GameObject>(fileManager.temperature);
-    //}
-
-    //GameObject BrightShower(IMapable n)
-    //{
-    //    return GameObject.Instantiate<GameObject>(fileManager.brightness);
-    //}
-
-    //GameObject TemperaturShower(int n)
-    //{
-    //    return GameObject.Instantiate<GameObject>(fileManager.temperature);
-    //}
-
     GameObject PlantShower(IMapable n)
     {
         GameObject g;
@@ -248,7 +171,7 @@ public class MainManager : MonoBehaviour
         {
             case 0:
             case 1:
-               // return GameObject.Instantiate<GameObject>(fileManager.plants[n.ID]);
+            // return GameObject.Instantiate<GameObject>(fileManager.plants[n.ID]);
             default: return null;
         }
     }
@@ -261,11 +184,7 @@ public class MainManager : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, 1000, 1 << 16))
             {
-                world.grouds.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z),selectInt );
-
-                // world.wallObjects.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z), new Wall(groundId));
-                //world.temperature.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z), new Temperature(100));
-                //world.birghtness.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z), new Brightness(groundId));
+                world.grouds.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z), selectInt);
             }
         }
 
@@ -275,8 +194,6 @@ public class MainManager : MonoBehaviour
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, 1000, 1 << 16))
             {
                 world.grouds.RemoveNode(new Vector2Int((int)hit.point.x, (int)hit.point.z));
-                // world.wallObjects.RemoveNode(new Vector2Int((int)hit.point.x, (int)hit.point.z));
-                // world.temperature.SetNode(new Vector2Int((int)hit.point.x, (int)hit.point.z), new Temperature(0));
             }
         }
 
@@ -288,7 +205,7 @@ public class MainManager : MonoBehaviour
         {
             if (tempSave != null)
             {
-                world.grouds.Load(tempSave, (a) => { return new Ground(a, world.grouds); });
+                world.grouds.Load(tempSave);
             }
         }
 
@@ -301,12 +218,19 @@ public class MainManager : MonoBehaviour
             SubSelectID();
         }
 
-        world.grouds.Shower.Refresh();
+        refushTime += Time.deltaTime;
+        if (refushTime > refushCD)
+        {
+            refushTime -= refushCD;
+            world.grouds.Update();
+            world.grouds.Shower.Refresh();
+        }
     }
+
+
 
     //void TemperatureUpdateAction()
     //{
-
     //    foreach (var item in world.temperature.Nodes)
     //    {
     //        if (item != null)
@@ -318,20 +242,6 @@ public class MainManager : MonoBehaviour
     //    }
     //    //temperatrueTex.Apply(false);
     //}
-
-    //void BrightnessUpdateAction()
-    //{
-    //    foreach (var item in world.birghtness.Nodes)
-    //    {
-    //        if (item != null)
-    //        {
-    //            item.Update();
-    //            //brightnessTex.SetPixel(item.Index.x, item.Index.y, new Color(0, 0, 0, (float)item.ID / 100));
-    //        }
-    //    }
-    //    //brightnessTex.Apply(false);
-    //}
-
     void AddLight()
     {
 
@@ -342,46 +252,63 @@ public class MainManager : MonoBehaviour
 
     }
 
-    //void GroundUpdate()
-    //{
-    //    groundUpdateTime += Time.deltaTime;
-    //    if (groundUpdateTime > groundUpdateCD)
-    //    {
-    //        groundUpdateTime -= groundUpdateCD;
-    //        foreach (var item in world.grouds.Nodes)
-    //        {
-    //            if (item != null)
-    //            {
-    //                item.Update();
-    //                //brightnessTex.SetPixel(item.Index.x, item.Index.y, new Color(0, 0, 0, (float)item.ID / 100));
-    //            }
-    //        }
 
+    void GroundUpdate(Map map)
+    {
+        for (int x = 0; x < map.nodes.GetLength(0); x++)
+        {
+            for (int y = 0; y < map.nodes.GetLength(1); y++)
+            {
+                GroundUpdate(x, y, map);
+            }
+        }
+    }
 
-    //        //BrightnessUpdateAction();
-    //        //TemperatureUpdateAction();
-    //    }
-    //}
+    void GroundUpdate(int x, int y, Map map)
+    {
+        switch (map.nodes[x, y])
+        {
+            case 1:
+                GoundUpdate_Sad(x, y, map);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    void GoundUpdate_Sad(int x, int y, Map map)
+    {
+        Vector2Int index = Vector2Int.zero;
+        index.x = x;
+        index.y = y;
+        Vector2Int target = index;
+        if (UnityEngine.Random.value <1f)
+        {
+            target = index + Vector2Int.up;
+            if ((map.GetNode(target) == 0)) map.SetNode(target, 1);
+            target = index + Vector2Int.down;
+            if ((map.GetNode(target) == 0)) map.SetNode(target, 1);
+            target = index + Vector2Int.right;
+            if ((map.GetNode(target) == 0)) map.SetNode(target, 1);
+            target = index + Vector2Int.left;
+            if ((map.GetNode(target) == 0)) map.SetNode(target, 1);
+        }
+    }
 }
-
-public class MapEditor : MonoBehaviour
-{
-    int selectBrushId;
-    public Texture2D textureBrush;
-
-}
-
 
 public class Map : IMap
 {
+    public static int MAP_NULL = -1;
+
     public Vector2Int id;
     private Vector2Int size;
-    public static int MAP_NULL = -1;
-    //IMapable[,] nodes;
-    int[,] nodes;
+    public Vector2Int Size { get { return size; } }
+    public int[,] nodes;
+    public World World { get; set; }
     public MapController Controller { get; set; }
     public IMapShower Shower { get; set; }
-    public World World { get; set; }
+
     public Action<Vector2Int> onAddMapNode, onRemoveMapNode, onSetMapNode;
     public Action<Map> onUpdate;
     public Map(Vector2Int id, Vector2Int size)
@@ -389,33 +316,21 @@ public class Map : IMap
         this.id = id;
         this.size = size;
         nodes = new int[size.x, size.y];
-        //new IMapable[size.x, size.y];
-        //livenode = new LinkedList<T>();
     }
-    public void InitAllNode(Func<IMapable> nodeCreator)
+    public void InitAllNode(int initID)
     {
         for (int x = 0; x < nodes.GetLength(0); x++)
         {
             for (int y = 0; y < nodes.GetLength(1); y++)
             {
-                SetNode(new Vector2Int(x, y), 0);
+                SetNode(new Vector2Int(x, y), initID);
             }
         }
     }
 
-    public Vector2Int Size { get { return size; } }
-
-    public int[,] Nodes
+    public void SetNode(Vector2Int index, int value)
     {
-        get
-        {
-            return nodes;
-        }
-    }
-
-    public void SetNode(Vector2Int index,int value)
-    {
-        if (onSetMapNode!=null)
+        if (onSetMapNode != null)
         {
             onAddMapNode(index);
         }
@@ -425,11 +340,7 @@ public class Map : IMap
 
     public void AddNode(Vector2Int index, int node)
     {
-        Nodes[index.x, index.y] = node;
-        //node.Index = index;
-        //node.Map = this;
-
-        //livenode.AddFirst(node);
+        nodes[index.x, index.y] = node;
         if (onAddMapNode != null)
         {
             onAddMapNode(index);
@@ -442,23 +353,20 @@ public class Map : IMap
         {
             onRemoveMapNode(index);
         }
-        //IMapable node = Nodes[index.x, index.y];
-        Nodes[index.x, index.y] = MAP_NULL;
-        //SetNode(new Vector2Int(index.x, index.y), MAP_NULL);
-        //livenode.Remove(nodes[index.x, index.y]);
+        nodes[index.x, index.y] = MAP_NULL;
     }
-
     public int GetNode(Vector2Int index)
     {
         if (index.x < 0) return MAP_NULL;
         if (index.y < 0) return MAP_NULL;
         if (index.x >= Size.x) return MAP_NULL;
         if (index.y >= Size.y) return MAP_NULL;
-        return Nodes[index.x, index.y];
+        return nodes[index.x, index.y];
     }
 
-    public void Update() {
-        if (onUpdate!=null)
+    public void Update()
+    {
+        if (onUpdate != null)
         {
             onUpdate(this);
         }
@@ -471,7 +379,7 @@ public class Map : IMap
         {
             for (int y = 0; y < size.y; y++)
             {
-                s[x, y] = Nodes[x, y];
+                s[x, y] = nodes[x, y];
             }
         }
         return s;
@@ -480,13 +388,13 @@ public class Map : IMap
     {
         return "";
     }
-    public void Load(int[,] data, Func<int, IMapable> nodeCreator)
+    public void Load(int[,] data)
     {
-        for (int x = 0; x < Nodes.GetLength(0); x++)
+        for (int x = 0; x < nodes.GetLength(0); x++)
         {
-            for (int y = 0; y < Nodes.GetLength(1); y++)
+            for (int y = 0; y < nodes.GetLength(1); y++)
             {
-                SetNode(new Vector2Int(x, y),data[x, y]);
+                SetNode(new Vector2Int(x, y), data[x, y]);
             }
         }
     }
@@ -499,7 +407,7 @@ public class MapController
 {
     public MapController(Vector2Int startPos, Vector2Int size)
     {
-        GameObject c = GameObject.CreatePrimitive(PrimitiveType.Cube); //new GameObject(startPos.ToString() + ":" + size.ToString());
+        GameObject c = GameObject.CreatePrimitive(PrimitiveType.Cube);
         c.transform.position = new Vector3(size.x / 2, 0, size.y / 2);
         c.transform.localScale = new Vector3(size.x, 1, size.y);
         c.GetComponent<MeshRenderer>().enabled = false;
@@ -517,23 +425,22 @@ public class MapTextureShower : IMapShower
     public GameObject[,] quads;
     public bool[,] isModify;
     public Vector2Int unit;
-    
+
     Func<int, Color[]> showerFun;
     public Material quadsMaterial;
     //public Texture2D showTexture;
 
-    public MapTextureShower(Map map, Vector2Int unit, Func<int, Color[]> showerFun = null,Material quadsMaterial = null)
+    public MapTextureShower(Map map, Vector2Int unit, Func<int, Color[]> showerFun = null, Material quadsMaterial = null)
     {
         this.unit = unit;
         this.map = map;
         this.showerFun = showerFun;
         this.quadsMaterial = quadsMaterial;
 
-
         map.onAddMapNode += OnMapAddNode;
         map.onRemoveMapNode += OnMapRemoveNode;
-        int x = map.Size.x / (1024/unit.x);
-        int y = map.Size.y / (1024/unit.y);
+        int x = map.Size.x / (1024 / unit.x);
+        int y = map.Size.y / (1024 / unit.y);
         int mx = map.Size.x % (1024 / unit.x);
         int my = map.Size.y % (1024 / unit.y);
         if (mx != 0)
@@ -544,7 +451,6 @@ public class MapTextureShower : IMapShower
         {
             y += 1;
         }
-
         textures = new Texture2D[x, y];
         quads = new GameObject[x, y];
         isModify = new bool[x, y];
@@ -564,11 +470,10 @@ public class MapTextureShower : IMapShower
                 {
                     ysize = my == 0 ? ysize : my * unit.y;
                 }
-
                 textures[i, j] = new Texture2D(xsize, ysize);
                 textures[i, j].wrapMode = TextureWrapMode.Clamp;
                 quads[i, j] = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                if (quadsMaterial!=null)
+                if (quadsMaterial != null)
                 {
                     quads[i, j].GetComponent<MeshRenderer>().material = quadsMaterial;
                 }
@@ -579,25 +484,17 @@ public class MapTextureShower : IMapShower
             }
         }
     }
-
     public void OnMapAddNode(Vector2Int mapNode)
     {
-        int x = mapNode.x;//  mapNode.Index.x;
+        int x = mapNode.x;// mapNode.Index.x;
         int y = mapNode.y;// mapNode.Index.y;
-        int xd = x % (1024/unit.x);
-        int yd = y % (1024/unit.y);
-        x = x / (1024/unit.x);
-        y = y / (1024/unit.y);
-
-        //Color[] c = new Color[32*32];
-        //for (int i = 0; i < c.Length; i++)
-        //{
-        //    c[i] = Color.black;
-        //}
-        Color[] c = showerFun(map.Nodes[mapNode.x,mapNode.y]); // MainManager.m_Instance.selectColor;
+        int xd = x % (1024 / unit.x);
+        int yd = y % (1024 / unit.y);
+        x = x / (1024 / unit.x);
+        y = y / (1024 / unit.y);
+        Color[] c = showerFun(map.nodes[mapNode.x, mapNode.y]); // MainManager.m_Instance.selectColor;
         textures[x, y].SetPixels(xd * unit.x, yd * unit.x, unit.x, unit.y, c);
         isModify[x, y] = true;
-        //textures[x, y].Apply();
     }
 
     public void OnMapRemoveNode(Vector2Int mapNode)
@@ -615,60 +512,44 @@ public class MapTextureShower : IMapShower
         }
         textures[x, y].SetPixels(xd * unit.x, yd * unit.x, unit.x, unit.y, c);
         isModify[x, y] = true;
-        //int x = mapNode.Index.x;
-        //int y = mapNode.Index.y;
-        //int xd = x % 32;
-        //int yd = y % 32;
-        //x = x / 32;
-        //y = y / 32;
-        //textures[x, y].SetPixels(xd, yd, 32, 32, new Color[] { Color.white });
     }
 
     public void Show(Vector2Int mapIndex)
     {
-        if (onShow != null) onShow.Invoke(map.Nodes[mapIndex.x, mapIndex.y]);
+        if (onShow != null) onShow.Invoke(map.nodes[mapIndex.x, mapIndex.y]);
     }
 
     public void ClearShow(Vector2Int mapIndex)
     {
-        if (onShow != null) onShow.Invoke(-1);
+        if (onShow != null) onShow.Invoke(Map.MAP_NULL);
     }
 
     public void ShowAll()
     {
         Vector2Int target = Vector2Int.zero;
-        for (int x = 0; x < map.Nodes.GetLength(0); x++)
+        for (int x = 0; x < map.nodes.GetLength(0); x++)
         {
-            for (int y = 0; y < map.Nodes.GetLength(1); y++)
+            for (int y = 0; y < map.nodes.GetLength(1); y++)
             {
                 target.x = x;
                 target.y = y;
                 Show(target);
             }
         }
-        //foreach (var item in map.Nodes)
-        //{
-            
-        //}
     }
     public void ClearShowAll()
     {
         Vector2Int target = Vector2Int.zero;
-        for (int x = 0; x < map.Nodes.GetLength(0); x++)
+        for (int x = 0; x < map.nodes.GetLength(0); x++)
         {
-            for (int y = 0; y < map.Nodes.GetLength(1); y++)
+            for (int y = 0; y < map.nodes.GetLength(1); y++)
             {
                 target.x = x;
                 target.y = y;
                 ClearShow(target);
             }
         }
-        //foreach (var item in map.Nodes)
-        //{
-        //    ClearShow(item.Index);
-        //}
     }
-
 
     public void Refresh()
     {
@@ -779,115 +660,42 @@ public class World
     public Map water;
     public Map electr;
 
-    //internal IntMap inttemperature;
-
     public void CreateGroundMap(Vector2Int size, Func<int, GameObject> funcShower)
     {
         grouds = new Map(Vector2Int.zero, size);
         grouds.Shower = new MapNodeShower(grouds, funcShower);
         grouds.Controller = new MapController(Vector2Int.zero, size);
-        grouds.InitAllNode(() => { return new Ground(0,grouds); });
+        grouds.InitAllNode(0);
     }
 
     public void CreatePlantMap(Vector2Int size, Func<int, GameObject> funcShower)
     {
         plants = new Map(Vector2Int.zero, Vector2Int.one * 64);
         plants.Shower = new MapNodeShower(plants, funcShower);
-        plants.InitAllNode(() => { return new Plant(0); });
+        plants.InitAllNode(0);
     }
 
 }
-public class Plant : IMapable
+public class Ground
 {
-    public Plant(int id)
-    {
-        this.ID = id;
-    }
-    public World world;
-    public int ID { get; set; }
-    public Vector2Int Index { get; set; }
-    public IMap Map { get; set; }
-
-    public void Update()
-    {
-        switch (ID)
-        {
-            case 0:
-                break;
-            case 1:
-                //GrassUpdate();
-                break;
-        }
-    }
-
-    //void GrassUpdate()
-    //{
-    //    if (UnityEngine.Random.value < 0.1f)
-    //    {
-    //        Vector2Int up = Index + Vector2Int.up;
-    //        Vector2Int down = Index + Vector2Int.down;
-    //        Vector2Int right = Index + Vector2Int.right;
-    //        Vector2Int left = Index + Vector2Int.left;
-    //        if (Map.GetNode(up) != null && (Map.GetNode(up).ID == 0)) Map.SetNode(up, new Plant(1));
-    //        if (Map.GetNode(down) != null && (Map.GetNode(down).ID == 0)) Map.SetNode(down, new Plant(1));
-    //        if (Map.GetNode(right) != null && (Map.GetNode(right).ID == 0)) Map.SetNode(right, new Plant(1));
-    //        if (Map.GetNode(left) != null && (Map.GetNode(left).ID == 0)) Map.SetNode(left, new Plant(1));
-    //    }
-    //}
-}
-public class Ground : IMapable
-{
-    //public World world;
-    public Ground(int id,IMap map)
-    {
-        this.ID = id;
-        this.Map = map;
-    }
-    private int id;
-    public Vector2Int Index { get; set; }
-    public IMap Map { get; set; }
-
-    public int ID { get { return id; } set { id = value; } }
-
-    public string name;
-    public string describle;
-    public int smooth, growth;
+    public int id;
     public void Update()
     {
         switch (id)
         {
             case 0:
-                MadUpdate();
+                //MadUpdate();
                 break;
             case 1:
                 //SadUpdate();
                 break;
-            case 2:
-                IceUpdate();
-                break;
-            case 3:
-                StoneUpdate();
-                break;
-            case 4:
-                WaterUpdate();
-                break;
-            default:
-                break;
+
         }
         //Debug.Log("GroundUpdate");
         //Debug.Log(Index);
     }
 
-    void MadUpdate()
-    {
-        //if (UnityEngine.Random.value < 0.01f)
-        //{
-        //    if (Map.World.plants.GetNode(Index).ID == 0)
-        //    {
-        //        Map.World.plants.SetNode(Index, new Plant(1));
-        //    }
-        //}
-    }
+
     //void SadUpdate()
     //{
     //    if (UnityEngine.Random.value < 1f)
@@ -902,29 +710,10 @@ public class Ground : IMapable
     //        if (Map.GetNode(left) != null && (Map.GetNode(left).ID == 0)) Map.SetNode(left, new Ground(1, Map));
     //    }
     //}
-    void IceUpdate() { }
-    void StoneUpdate() { }
-    void WaterUpdate() { }
 }
 public class Wall : IMapable
 {
     public Wall(int id)
-    {
-        this.ID = id;
-    }
-    public int ID { get; set; }
-
-    public Vector2Int Index { get; set; }
-
-    public IMap Map { get; set; }
-
-    public void Update()
-    {
-    }
-}
-public class PlaceObject : IMapable
-{
-    public PlaceObject(int id)
     {
         this.ID = id;
     }
@@ -954,7 +743,6 @@ public class Brightness : IMapable
     {
         float tt = ID;
         tt /= 100;
-
         //(Map.Shower.nodesRenderer[Index.x, Index.y] as SpriteRenderer).color = new Color(0,0,0,0.75f-tt*0.75f);
     }
 }
@@ -980,26 +768,20 @@ public class Temperature : IMapable
         int upnode = Map.GetNode(up);
         tt += upnode == -1 ? 0 : upnode;
         int downnode = Map.GetNode(down);
-        tt += downnode == -1 ? 0 : downnode ;
+        tt += downnode == -1 ? 0 : downnode;
         int rightnode = Map.GetNode(right);
-        tt += rightnode == -1 ? 0 : rightnode ;
+        tt += rightnode == -1 ? 0 : rightnode;
         int leftnode = Map.GetNode(left);
-        tt += leftnode == -1 ? 0 : leftnode ;
+        tt += leftnode == -1 ? 0 : leftnode;
         tt /= 5;
         ID = tt;
-        if (upnode != -1) upnode  = tt;
-        if (downnode != -1) downnode  = tt;
-        if (rightnode != -1) rightnode  = tt;
-        if (leftnode != -1) leftnode  = tt;
+        if (upnode != -1) upnode = tt;
+        if (downnode != -1) downnode = tt;
+        if (rightnode != -1) rightnode = tt;
+        if (leftnode != -1) leftnode = tt;
 
         float ttt = (float)tt / 100;
-        //if (Map.Shower != null && Map.Shower.nodesRenderer[Index.x, Index.y] != null)
-        //{
-        //    (Map.Shower.nodesRenderer[Index.x, Index.y] as SpriteRenderer).color = new Color(ttt, (1 - ttt) * 0.75f, 1 - ttt);
-        //}
-        //Map.Shower. GetNode(Index).GetComponentInChildren<SpriteRenderer>().color = new Color(ttt,(1-ttt)* 0.75f, 1-ttt);
     }
-
 }
 public interface IMap
 {
