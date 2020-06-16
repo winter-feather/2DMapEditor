@@ -45,7 +45,7 @@ public class MainManager : MonoBehaviour
             selectColor = brush.GetPixels(selectInt * 32, 0, unit.x, unit.y);
             return MainManager.m_Instance.selectColor;
         }, oMateral);
-        world.grouds.InitAllNode(1);
+        world.grouds.InitAllNode(0);
         world.grouds.onUpdate += GroundUpdate;
         //world.wallObjects = new Map(Vector2Int.zero, size);
         //world.wallObjects.Shower = new MapNodeShower(world.wallObjects, WallShower);
