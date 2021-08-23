@@ -9,20 +9,30 @@ namespace WFMapTools
         Dictionary<Vector2Int, MapNode> world;
         public Vector2Int unitSize;
         public long nodeSeed;
-        IMapShower colorShower;
-
+        IMapShower shower;
+        IMapContrler contrler;
+        Vector2 perlinNoise;
+        
         private void Awake()
         {
+            
             world = new Dictionary<Vector2Int, MapNode>();
             unitSize = new Vector2Int(100, 100);
+            perlinNoise = Vector2.one * 5;
         }
         // Start is called before the first frame update
         void Start()
         {
-            colorShower = new ColorShower();
+            shower = new ColorShower();
             CreateNewMap(Vector2Int.zero);
+            CreateNewMap(new Vector2Int(0, 1));
+            CreateNewMap(new Vector2Int(0, 2));
 
-            colorShower.Show(world[Vector2Int.zero]);
+            foreach (var item in world)
+            {
+                shower.Show(item.Value);
+            }
+
         }
 
         // Update is called once per frame
@@ -38,8 +48,10 @@ namespace WFMapTools
         public void CreateNewMap(Vector2Int index)
         {
             MapData data = new MapData();
+
             SetMapData4PN(data, index);
             MapNode mn = new MapNode(index, data);
+            mn.index = index;
             world[index] = mn;
             //mn.shower = colorShower;
         }
@@ -58,7 +70,7 @@ namespace WFMapTools
             {
                 for (int j = 0; j < data.data.GetLength(1); j++)
                 {
-                    data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX)/ (float)data.data.GetLength(0), (j + offsetY)/ (float)data.data.GetLength(1)) * 256f);
+                    data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX) / (float)data.data.GetLength(0)* perlinNoise.x, (j + offsetY) / (float)data.data.GetLength(1) * perlinNoise.y) * 256f);
                 }
             }
         }
@@ -138,10 +150,12 @@ namespace WFMapTools
             {
                 for (int j = 0; j < showNode.data.data.GetLength(1); j++)
                 {
+                    int x = i + showNode.index.x * MapManager.Instance.unitSize.x;
+                    int y = j + showNode.index.y * MapManager.Instance.unitSize.y;
                     GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    go.transform.position = new Vector3(i, 0, j);
-                    Debug.LogError(showNode.data.data[i, j]);
-                    go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(showNode.data.data[i, j] / 256f, 0.5f,0.5f);  //new Color(showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f);
+                    go.transform.position = new Vector3(x, 0, y);
+                    //Debug.LogError(showNode.data.data[i, j]);
+                    go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(showNode.data.data[i, j] / 256f, 0.5f, 0.5f);  //new Color(showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f);
                 }
             }
         }
@@ -150,6 +164,10 @@ namespace WFMapTools
     public interface IMapShower
     {
         void Show(MapNode showNode);
+    }
+
+    public interface IMapContrler {
+        void Update();
     }
 }
 
