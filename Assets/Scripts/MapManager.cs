@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WFMapTools
 {
-    public class MapManager : SingleManager<MapManager>
+    public class MapManager : SingleMonoManager<MapManager>
     {
         Dictionary<Vector2Int, MapNode> world;
         public Vector2Int unitSize;
@@ -17,20 +17,21 @@ namespace WFMapTools
         {
             
             world = new Dictionary<Vector2Int, MapNode>();
-            unitSize = new Vector2Int(100, 100);
+            //unitSize = new Vector2Int(10, 10);
             perlinNoise = Vector2.one * 5;
         }
         // Start is called before the first frame update
         void Start()
         {
             shower = new ColorShower();
+            //shower = new TextureShower();
             CreateNewMap(Vector2Int.zero);
             CreateNewMap(new Vector2Int(0, 1));
             CreateNewMap(new Vector2Int(0, 2));
 
             foreach (var item in world)
             {
-                shower.Show(item.Value);
+                shower.InitMapNode(item.Value);
             }
 
         }
@@ -48,8 +49,10 @@ namespace WFMapTools
         public void CreateNewMap(Vector2Int index)
         {
             MapData data = new MapData();
-
+            #region PNTest
             SetMapData4PN(data, index);
+            #endregion
+
             MapNode mn = new MapNode(index, data);
             mn.index = index;
             world[index] = mn;
@@ -109,7 +112,8 @@ namespace WFMapTools
 
     public class MapData
     {
-        public MapData()
+
+        public MapData( )
         {
             InitData();
         }
@@ -118,11 +122,16 @@ namespace WFMapTools
         public void InitData()
         {
             data = new byte[WFMapTools.MapManager.Instance.unitSize.x, WFMapTools.MapManager.Instance.unitSize.y];
+
         }
 
         public string SaveData2Json()
         {
             return "";
+        }
+        public byte[] SaveData2Byte()
+        {
+            return new byte[] { };
         }
 
         public void LoadData4Json(string jsonData)
@@ -135,16 +144,92 @@ namespace WFMapTools
 
         }
 
-        public byte[] SaveData2Byte()
-        {
-            return new byte[] { };
-        }
+
 
     }
 
     public class ColorShower : IMapShower
     {
-        public void Show(MapNode showNode)
+        Dictionary<Vector2Int, MapNode> maps;
+        Dictionary<Vector2Int, GameObject> nodes;
+        public ColorShower() {
+            nodes = new Dictionary<Vector2Int, GameObject>();
+        }
+
+        public void InitMapNode(MapNode showNode)
+        {
+            Vector2Int index = Vector2Int.one;
+            for (int i = 0; i < showNode.data.data.GetLength(0); i++)
+            {
+                for (int j = 0; j < showNode.data.data.GetLength(1); j++)
+                {
+                    index.x = i;index.y = j;
+                    Show(showNode, index);
+                }
+            }
+        }
+        Vector2Int TransToWorldIndex(Vector2Int nodeIndex,Vector2Int index) {
+            int x = nodeIndex.x * MapManager.Instance.unitSize.x + index.x;
+            int y = nodeIndex.y * MapManager.Instance.unitSize.y + index.y;
+            return new Vector2Int(x, y);
+        }
+        public void Show(MapNode node) { 
+        
+        
+        }
+        public void Show(MapNode node, Vector2Int index)
+        {
+            Vector2Int pos = TransToWorldIndex(node.index, index);
+            GameObject go;
+            if (nodes.ContainsKey(pos)) go = nodes[pos];
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                nodes.Add(pos, go);
+            }
+            go.transform.position = new Vector3(pos.x, node.data.data[index.x, index.y] / 32, pos.y);
+            go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(node.data.data[index.x, index.y] / 256f, 0.5f, 0.5f);
+        }
+
+    }
+
+    public class TextureShower : IMapShower
+    {
+        
+        public TextureShower() { 
+        
+        }
+
+        public MapNode Map => throw new System.NotImplementedException();
+
+        public void InitMapNode(MapNode showNode)
+        {
+            GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            panel.transform.position = new Vector3(showNode.index.x * MapManager.Instance.unitSize.x, 0, showNode.index.y * MapManager.Instance.unitSize.y);
+            panel.transform.rotation = Quaternion.AngleAxis( 90, Vector3.right);
+            panel.transform.localScale = new Vector3(showNode.data.data.GetLength(0), showNode.data.data.GetLength(1));
+
+
+            for (int i = 0; i < showNode.data.data.GetLength(0); i++)
+            {
+                for (int j = 0; j < showNode.data.data.GetLength(1); j++)
+                {
+                    //data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX) / (float)data.data.GetLength(0) * perlinNoise.x, (j + offsetY) / (float)data.data.GetLength(1) * perlinNoise.y) * 256f);
+                }
+            }
+        }
+
+        public void Show(MapNode node, Vector2Int index)
+        {
+            throw new System.NotImplementedException();
+        }
+    }
+
+    public class SpriteShower : IMapShower
+    {
+        public MapNode Map => throw new System.NotImplementedException();
+
+        public void InitMapNode(MapNode showNode)
         {
             for (int i = 0; i < showNode.data.data.GetLength(0); i++)
             {
@@ -153,28 +238,43 @@ namespace WFMapTools
                     int x = i + showNode.index.x * MapManager.Instance.unitSize.x;
                     int y = j + showNode.index.y * MapManager.Instance.unitSize.y;
                     GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    //GameObject.Instantiate<GameObject>();
                     go.transform.position = new Vector3(x, 0, y);
-                    //Debug.LogError(showNode.data.data[i, j]);
+                    Debug.LogError(showNode.data.data[i, j]);
                     go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(showNode.data.data[i, j] / 256f, 0.5f, 0.5f);  //new Color(showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f);
                 }
             }
         }
-    }
 
+        public void Show(MapNode node, Vector2Int index)
+        {
+            throw new System.NotImplementedException();
+        }
+    }
     public interface IMapShower
     {
-        void Show(MapNode showNode);
+
+        void InitMapNode(MapNode showNode);
+        void Show(MapNode node, Vector2Int index);
     }
 
     public interface IMapContrler {
         void Update();
     }
+
+    public class ShowerManager : SingleMonoManager<ShowerManager> { 
+        
+    }
+
+    public class BrushManager : SingleMonoManager<BrushManager> { 
+    
+    }
 }
 
 
+//public class SingleMa
 
-
-public class SingleManager<T> : MonoBehaviour where T : Component
+public class SingleMonoManager<T> : MonoBehaviour where T : Component
 {
     static T instance;
     static bool isDestroy = false;
