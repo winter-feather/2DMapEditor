@@ -182,7 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fea32be139c63fe449ea1b3257ca7b39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  unitSize: {x: 20, y: 20}
+  mapUnit: {x: 32, y: 32}
   nodeSeed: 0
 --- !u!1 &412114729
 GameObject:
