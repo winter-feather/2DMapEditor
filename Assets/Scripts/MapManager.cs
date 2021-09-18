@@ -6,17 +6,22 @@ namespace WFMapTools
 {
     public class MapManager : SingleMonoManager<MapManager>
     {
-        Dictionary<Vector2Int, MapNode> world;
+        Dictionary<Vector2Int, MapNode> ground;
+        Dictionary<Vector2Int, MapNode> plant;
         public Vector2Int mapUnit;
-        public long nodeSeed;
-        IMapShower shower;
-        IMapContrler contrler;
-        Vector2 perlinNoise;
+
+        TextureShower groundShower;
+        SpriteShower plantShower;
+
+        Vector2Int selectNodeIndex, selectIndex;
+        bool isSelected;
+        public Vector2Int SelectNodeIndex => selectNodeIndex;
+        public Vector2Int SelectIndex => selectIndex;
 
         private void Awake()
         {
-            world = new Dictionary<Vector2Int, MapNode>();
-            perlinNoise = Vector2.one * 5;
+            ground = new Dictionary<Vector2Int, MapNode>();
+            plant = new Dictionary<Vector2Int, MapNode>();
         }
         // Start is called before the first frame update
         void Start()
@@ -24,17 +29,41 @@ namespace WFMapTools
             //shower = new ColorShower();
             MapNode.perlinNoiseAmplitude = 0.05f;
             MapNode.perlinNoiseOffsetSeed = new Vector2Int(1000, 1000);
-            shower = new TextureShower();
-            CreateNewMap(Vector2Int.zero);
-            CreateNewMap(new Vector2Int(0, 1));
-            CreateNewMap(new Vector2Int(0, 2));
+            groundShower = new TextureShower();
+            plantShower = new SpriteShower();
+            StartCoroutine(LoadMap());
+            //StartCoroutine(IEUpdate());
+        }
 
-            foreach (var item in world)
+        //IEnumerator IEUpdate() {
+        //    while (true)
+        //    {
+        //        yield return new WaitForSeconds(0.5f);
+        //        textureShower.Update();
+        //    }
+        //}
+
+        IEnumerator LoadMap()
+        {
+            yield return null;
+            for (int i = 0; i <3; i++)
             {
-                item.Value.InitByPerlinNoise();
-                shower.InitMapNode(item.Value);
+                for (int j = 0; j <3; j++)
+                {
+                    CreateNewMap(new Vector2Int(i, j));
+                    yield return null;
+                    //Debug.LogError(i * 10 + j);
+                }
             }
 
+            foreach (var item in ground)
+            {
+                item.Value.InitByPerlinNoise();
+                groundShower.InitMapNode(item.Value);
+                plantShower.InitMapNode(item.Value);
+                yield return null;
+                //Debug.LogError(loadCount++ / maxLoadCount);
+            }
         }
 
 
@@ -44,14 +73,59 @@ namespace WFMapTools
 
             MapNode mn = new MapNode(index, data);
             mn.index = index;
-            world[index] = mn;
+            ground[index] = mn;
         }
 
         public void CreateMap(MapNode node)
         {
 
         }
+        RaycastHit hit;
+        
+        public void Update()
+        {
+            UpdateSelectInfo();
+            if (Input.GetMouseButton(0))
+            {
+                if (isSelected)
+                {
+                    groundShower.TestShow(ground[selectNodeIndex], selectIndex);
+                }
+            }
+        }
 
+        public void FixedUpdate()
+        {
+            //Test
+            groundShower.Update();
+        }
+
+
+
+        void UpdateSelectInfo()
+        {
+            if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit))
+            {
+                isSelected = true;
+                PosConverMapIndex(hit.point, out selectNodeIndex, out selectIndex);
+            }
+            else
+            {
+                isSelected = false;
+            }
+        }
+
+        void PosConverMapIndex(Vector3 hitPoint, out Vector2Int nodeIndex, out Vector2Int index)
+        {
+            int x = Mathf.FloorToInt(hitPoint.x);
+            int y = Mathf.FloorToInt(hitPoint.z);
+            nodeIndex = Vector2Int.zero;
+            nodeIndex.x = x / mapUnit.x;
+            nodeIndex.y = y / mapUnit.y;
+            index = Vector2Int.zero;
+            index.x = x % mapUnit.x;
+            index.y = y % mapUnit.y;
+        }
 
 
     }
@@ -128,7 +202,6 @@ namespace WFMapTools
         public void InitData()
         {
             data = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y];
-
         }
 
         public string SaveData2Json()
@@ -206,12 +279,13 @@ namespace WFMapTools
     {
         Dictionary<Vector2Int, Texture2D> textures;
         Dictionary<Vector2Int, MeshRenderer> renderers;
-
-
+        Dictionary<Vector2Int, bool> updateTexture;
+        //Queue
         public TextureShower()
         {
             textures = new Dictionary<Vector2Int, Texture2D>();
             renderers = new Dictionary<Vector2Int, MeshRenderer>();
+            updateTexture = new Dictionary<Vector2Int, bool>();
         }
         public void InitMapNode(MapNode showNode)
         {
@@ -226,6 +300,51 @@ namespace WFMapTools
             }
             textures[showNode.index].Apply();
         }
+        public void Apply(Vector2Int index)
+        {
+            textures[index].Apply(false);
+        }
+
+        public void Update() {
+            foreach (var item in updateTexture)
+            {
+                Apply(item.Key);
+            }
+            updateTexture.Clear();
+        }
+
+        public void TestShow(MapNode node, Vector2Int index)
+        {
+            Vector2Int currentIndex = node.index;
+            Vector2Int unit = MapManager.Instance.mapUnit;
+            MeshRenderer mr;
+            if (renderers.ContainsKey(currentIndex) && renderers[currentIndex] != null)
+            {
+                mr = renderers[node.index];
+            }
+            else
+            {
+
+                GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                panel.transform.position = new Vector3(node.index.x * MapManager.Instance.mapUnit.x + 16, 0, node.index.y * MapManager.Instance.mapUnit.y + 16);
+                panel.transform.rotation = Quaternion.AngleAxis(90, Vector3.right);
+                panel.transform.localScale = new Vector3(node.data.data.GetLength(0), node.data.data.GetLength(1), 1);
+
+                mr = panel.GetComponent<MeshRenderer>();
+                textures[currentIndex] = new Texture2D(1024, 1024);
+                mr.material.mainTexture = textures[currentIndex];
+                renderers[currentIndex] = mr;
+            }
+
+            for (int i = index.x * unit.x; i < index.x * unit.x + unit.x; i++)
+            {
+                for (int j = index.y * unit.y; j < index.y * unit.y + unit.y; j++)
+                {
+                    textures[currentIndex].SetPixel(i, j, Color.red);
+                }
+            }
+            updateTexture[currentIndex] = true;
+        }
         public void Show(MapNode node, Vector2Int index)
         {
             Vector2Int currentIndex = node.index;
@@ -239,14 +358,13 @@ namespace WFMapTools
             {
 
                 GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                panel.transform.position = new Vector3(node.index.x * MapManager.Instance.mapUnit.x, 0, node.index.y * MapManager.Instance.mapUnit.y);
+                panel.transform.position = new Vector3(node.index.x * MapManager.Instance.mapUnit.x + 16, 0, node.index.y * MapManager.Instance.mapUnit.y + 16);
                 panel.transform.rotation = Quaternion.AngleAxis(90, Vector3.right);
-                panel.transform.localScale = new Vector3(node.data.data.GetLength(0), node.data.data.GetLength(1));
+                panel.transform.localScale = new Vector3(node.data.data.GetLength(0), node.data.data.GetLength(1), 1);
 
                 mr = panel.GetComponent<MeshRenderer>();
                 textures[currentIndex] = new Texture2D(1024, 1024);
-                Debug.LogError("生成出来的材质是黑色无受光的，可能需要换成预置体");
-                //mr.material.mainTexture = textures[currentIndex];
+                mr.material.mainTexture = textures[currentIndex];
                 renderers[currentIndex] = mr;
             }
 
@@ -254,12 +372,19 @@ namespace WFMapTools
             {
                 for (int j = index.y * unit.y; j < index.y * unit.y + unit.y; j++)
                 {
-                    textures[currentIndex].SetPixel(i, j, Color.red);
+                    int r = index.x + index.y;
+                    if (r % 2 == 0)
+                    {
+                        textures[currentIndex].SetPixel(i, j, new Color(node.data.data[index.x, index.y] / 256f, 0.5f, 1f));// new Color(node.data.data[index.x, index.y] / 256f, 0.5f, 1f)
+                    }
+                    else
+                    {
+                        textures[currentIndex].SetPixel(i, j, new Color(node.data.data[index.x, index.y] / 256f, 0.5f, 1f));
+                    }
                 }
             }
         }
 
-        
         public void UnShow(MapNode node)
         {
         }
@@ -267,28 +392,52 @@ namespace WFMapTools
 
     public class SpriteShower : IMapShower
     {
-        public MapNode Map => throw new System.NotImplementedException();
-
+        Dictionary<Vector2Int, SpriteRenderer> spriteRnderers;//unit:pos
+        public SpriteShower() {
+            spriteRnderers = new Dictionary<Vector2Int, SpriteRenderer>();
+        }
         public void InitMapNode(MapNode showNode)
         {
+          
+            Vector2Int index = Vector2Int.one;
             for (int i = 0; i < showNode.data.data.GetLength(0); i++)
             {
                 for (int j = 0; j < showNode.data.data.GetLength(1); j++)
                 {
-                    int x = i + showNode.index.x * MapManager.Instance.mapUnit.x;
-                    int y = j + showNode.index.y * MapManager.Instance.mapUnit.y;
-                    GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    //GameObject.Instantiate<GameObject>();
-                    go.transform.position = new Vector3(x, 0, y);
-                    Debug.LogError(showNode.data.data[i, j]);
-                    go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(showNode.data.data[i, j] / 256f, 0.5f, 0.5f);  //new Color(showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f, showNode.data.data[i, j] / 256f);
+                    index.x = i; index.y = j;
+                    Show(showNode, index);
                 }
             }
         }
 
         public void Show(MapNode node, Vector2Int index)
         {
-            throw new System.NotImplementedException();
+            if (node.data.data[index.x, index.y] > 200) return;
+            Vector2Int pos = TransToWorldIndex(node.index, index);
+            SpriteRenderer sr;
+            if (spriteRnderers.ContainsKey(pos)) sr = spriteRnderers[pos];
+            else
+            {
+                sr = GameObject.Instantiate<GameObject>( Resources.Load<GameObject>("SpriteRenderer")).GetComponent<SpriteRenderer>();
+                spriteRnderers.Add(pos, sr);
+            }
+
+            sr.transform.position = new Vector3(pos.x+0.5f, 0.05f, pos.y+0.5f);
+            sr.transform.rotation = Quaternion.Euler(90, 0, 0);
+
+            if (node.data.data[index.x,index.y]>200)
+            {
+                //Resources.Load<Sprite>("colorBar_0");
+            }
+            spriteRnderers[pos].sprite =  BrushManager.Instance.planets[Random.Range(0, BrushManager.Instance.planets.Length)];
+            //go.GetComponent<SpriteRenderer>().material.color = Color.HSVToRGB(node.data.data[index.x, index.y] / 256f, 0.5f, 0.5f);
+        }
+
+        Vector2Int TransToWorldIndex(Vector2Int nodeIndex, Vector2Int index)
+        {
+            int x = nodeIndex.x * MapManager.Instance.mapUnit.x + index.x;
+            int y = nodeIndex.y * MapManager.Instance.mapUnit.y + index.y;
+            return new Vector2Int(x, y);
         }
 
         public void UnShow(MapNode node)
@@ -309,15 +458,6 @@ namespace WFMapTools
         void Update();
     }
 
-    public class ShowerManager : SingleMonoManager<ShowerManager>
-    {
-
-    }
-
-    public class BrushManager : SingleMonoManager<BrushManager>
-    {
-
-    }
 }
 
 
