@@ -5,6 +5,15 @@ using UnityEngine;
 public class BrushManager : SingleMonoManager<BrushManager>
 {
     public Sprite[] planets;
+    public Dictionary<string, Sprite[]> brush;
+    public Sprite[] tests;
+    private void Awake()
+    {
+        brush = new Dictionary<string, Sprite[]>();
+        brush["NumBrush"] = Resources.LoadAll<Sprite>(@"Brush\NumBrush"); //Resources.Load<Sprite>(@"\NumBrush");
+        brush["ConerBrush"] = Resources.LoadAll<Sprite>(@"Brush\ConerBrush"); //Resources.Load<Sprite>(@"\NumBrush");
+        tests = brush["ConerBrush"];
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -15,5 +24,9 @@ public class BrushManager : SingleMonoManager<BrushManager>
     void Update()
     {
         
+    }
+
+    void LoadBrush() { 
+    
     }
 }
