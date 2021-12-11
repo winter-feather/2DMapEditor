@@ -6,13 +6,19 @@ public class BrushManager : SingleMonoManager<BrushManager>
 {
     public Sprite[] planets;
     public Dictionary<string, Sprite[]> brush;
-    public Sprite[] tests;
+    public List<Texture2D>  gourndTextures;
     private void Awake()
     {
-        brush = new Dictionary<string, Sprite[]>();
-        brush["NumBrush"] = Resources.LoadAll<Sprite>(@"Brush\NumBrush"); //Resources.Load<Sprite>(@"\NumBrush");
-        brush["ConerBrush"] = Resources.LoadAll<Sprite>(@"Brush\ConerBrush"); //Resources.Load<Sprite>(@"\NumBrush");
-        tests = brush["ConerBrush"];
+        //brush = new Dictionary<string, Sprite[]>();
+        //brush["NumBrush"] = Resources.LoadAll<Sprite>(@"Brush\NumBrush"); //Resources.Load<Sprite>(@"\NumBrush");
+        //brush["ConerBrush"] = Resources.LoadAll<Sprite>(@"Brush\ConerBrush"); //Resources.Load<Sprite>(@"\NumBrush");
+        gourndTextures = new List<Texture2D>();
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\1"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\2"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\3"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\4"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\5"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\6"));
     }
     // Start is called before the first frame update
     void Start()

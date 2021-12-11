@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: e080f859b2ee04a49b40946bf5c5b800
+guid: ea400b6ec91944f49a8920cb3c0ba945
 TextureImporter:
   internalIDToNameTable:
   - first:
@@ -68,7 +68,7 @@ TextureImporter:
     externalNormalMap: 0
     heightScale: 0.25
     normalMapFilter: 0
-  isReadable: 1
+  isReadable: 0
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
   grayScaleToAlpha: 0
@@ -88,7 +88,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0

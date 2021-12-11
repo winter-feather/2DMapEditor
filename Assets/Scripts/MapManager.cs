@@ -12,11 +12,13 @@ namespace WFMapTools
         public Material groundMaterial;
 
 
-        BasicTextureShower groundShower;
+        FogTextureShower groundShower;
         SpriteShower plantShower;
 
         Vector2Int selectNodeIndex, selectIndex;
+       
         bool isSelected;
+        public bool IsSelected => isSelected;
         public Vector2Int SelectNodeIndex => selectNodeIndex;
         public Vector2Int SelectIndex => selectIndex;
 
@@ -31,7 +33,7 @@ namespace WFMapTools
             //shower = new ColorShower();
             MapNode.perlinNoiseAmplitude = 0.4f;
             MapNode.perlinNoiseOffsetSeed = new Vector2Int(10, 10);
-            groundShower = new BasicTextureShower(this);
+            groundShower = new FogTextureShower(this);
             plantShower = new SpriteShower();
             StartCoroutine(LoadMap());
         }
@@ -44,13 +46,15 @@ namespace WFMapTools
                 for (int j = 0; j < 2; j++)
                 {
                     CreateNewMap(new Vector2Int(i, j));
+                    //ground[new Vector2Int(i, j)].InitByPerlinNoise();
+                    //groundShower.InitMapNode(ground[new Vector2Int(i, j)]);
                     yield return null;
                 }
             }
 
             foreach (var item in ground)
             {
-                item.Value.InitByPerlinNoise();
+                //item.Value.InitByPerlinNoise();
                 groundShower.InitMapNode(item.Value);
                 //plantShower.InitMapNode(item.Value);
                 yield return null;
@@ -65,6 +69,7 @@ namespace WFMapTools
             MapNode mn = new MapNode(index, data);
             mn.index = index;
             ground[index] = mn;
+
         }
 
         public void CreateMap(MapNode node)
@@ -72,19 +77,31 @@ namespace WFMapTools
 
         }
         RaycastHit hit;
-
+        public byte groundID = 0;
         public void Update()
         {
+            if (Input.GetKeyDown(KeyCode.Alpha1)) groundID = 1;
+            if (Input.GetKeyDown(KeyCode.Alpha2)) groundID = 2;
+            if (Input.GetKeyDown(KeyCode.Alpha3)) groundID = 3;
+            if (Input.GetKeyDown(KeyCode.Alpha4)) groundID = 4;
+            if (Input.GetKeyDown(KeyCode.Alpha5)) groundID = 5;
+            if (Input.GetKeyDown(KeyCode.Alpha0)) groundID = 0;
+
+
             UpdateSelectInfo();
-            if (Input.GetMouseButton(0))
+            if (Input.GetMouseButtonDown(0))
             {
                 if (isSelected)
                 {
-                    ChangeColor(selectNodeIndex, selectIndex,255);
-                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.up);
-                    ChangeColor(selectNodeIndex, selectIndex - Vector2Int.up);
-                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right);
-                    ChangeColor(selectNodeIndex, selectIndex - Vector2Int.right);
+                    ChangeColor(selectNodeIndex, selectIndex, 7, groundID);
+                    //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.up);
+                    ChangeColor(selectNodeIndex, selectIndex - Vector2Int.up,1, groundID);
+                    //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right);
+                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right,3, groundID);
+                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right - Vector2Int.up,0, groundID);
+                    
+
+
                     //groundShower.TestShow(selectNodeIndex, selectIndex);
                     //groundShower.TestShow(selectNodeIndex, selectIndex + Vector2Int.up);
                     //groundShower.TestShow(selectNodeIndex, selectIndex - Vector2Int.up);
@@ -118,18 +135,21 @@ namespace WFMapTools
 
 
         #region ActionFunc
-        void ChangeColor(Vector2Int mapIndex, Vector2Int index,byte? colorID = null) {
+        void ChangeColor(Vector2Int mapIndex, Vector2Int index, byte conerID, byte? colorID = null)
+        {
             PosCheck(ref mapIndex, ref index);
             if (mapIndex.x < 0 || mapIndex.y < 0) return;
             if (!ground.ContainsKey(mapIndex))
             {
                 CreateNewMap(mapIndex);
+                groundShower.InitMapNode(ground[mapIndex]);
             }
             var node = ground[mapIndex];
-            if (colorID!=null)
+            if (colorID != null)
             {
-                node.data.data[index.x, index.y] = colorID.Value;
+                //node.data.SetData(index, colorID.Value);
             }
+            node.data.SetConerData(index.x, index.y, conerID, colorID.Value);
             groundShower.Show(node, index);
         }
 
@@ -187,7 +207,6 @@ namespace WFMapTools
         public Collider contrller;
         public Vector2Int index;
         public MapData data;
-
         public MapNode(Vector2Int index, MapData data)
         {
             this.index = index;
@@ -203,7 +222,11 @@ namespace WFMapTools
             {
                 for (int j = 0; j < data.data.GetLength(1); j++)
                 {
-                    data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX + perlinNoiseOffsetSeed.x) * perlinNoiseAmplitude, (j + offsetY + perlinNoiseOffsetSeed.y) * perlinNoiseAmplitude) * 256f);
+                    data.SetData(i,j,(byte)(Mathf.PerlinNoise((i + offsetX + perlinNoiseOffsetSeed.x) * perlinNoiseAmplitude, (j + offsetY + perlinNoiseOffsetSeed.y) * perlinNoiseAmplitude) * 256f));
+                    
+                    
+                    
+                    //data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX + perlinNoiseOffsetSeed.x) * perlinNoiseAmplitude, (j + offsetY + perlinNoiseOffsetSeed.y) * perlinNoiseAmplitude) * 256f);
                 }
             }
         }
@@ -247,10 +270,27 @@ namespace WFMapTools
         }
 
         public byte[,] data;
+        public byte[,,] coners;
         public void InitData()
         {
             data = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y];
+            coners = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y, 8];
         }
+
+        public void SetData(int x, int y, byte v)
+        {
+            data[x, y] = v;
+        }
+        public void SetData(Vector2Int index, byte v)
+        {
+            SetData(index.x, index.y, v);
+        }
+
+        public void SetConerData(int x, int y, int index, byte v) {
+            coners[x, y, index] = v;
+        }
+
+       
 
         public string SaveData2Json()
         {
@@ -323,16 +363,17 @@ namespace WFMapTools
         }
     }
 
-    public class BasicTextureShower : IMapShower
+    public class FogTextureShower : IMapShower
     {
         Dictionary<Vector2Int, Texture2D> textures;
         Dictionary<Vector2Int, MeshRenderer> renderers;
         Dictionary<Vector2Int, bool> updateTexture;
         Dictionary<Vector2Int, bool>.Enumerator enumerater;
+        Dictionary<byte, byte>.Enumerator enumraterConerDic;
         Vector2Int unit;
         MapManager mapManager;
         //Queue
-        public BasicTextureShower(MapManager mapManager)
+        public FogTextureShower(MapManager mapManager)
         {
             textures = new Dictionary<Vector2Int, Texture2D>();
             renderers = new Dictionary<Vector2Int, MeshRenderer>();
@@ -342,7 +383,7 @@ namespace WFMapTools
         }
         public void InitMapNode(MapNode showNode)
         {
-            Vector2Int index = Vector2Int.one;
+            Vector2Int index = Vector2Int.zero;
             for (int i = 0; i < showNode.data.data.GetLength(0); i++)
             {
                 for (int j = 0; j < showNode.data.data.GetLength(1); j++)
@@ -397,20 +438,6 @@ namespace WFMapTools
             }
         }
 
-        public void TestShow(Vector2Int mapIndex, Vector2Int index)
-        {
-            //Debug.LogError(index);
-            PosCheck(ref mapIndex, ref index);
-            if (mapIndex.x < 0 || mapIndex.y < 0) return;
-            if (!mapManager.ground.ContainsKey(mapIndex))
-            {
-                mapManager.CreateNewMap(mapIndex);
-            }
-            var node = mapManager.ground[mapIndex];
-            node.data.data[index.x,index.y] = 0;
-            Show(node, index);
-            return;
-        }
         public void Show(MapNode node, Vector2Int index)
         {
             Vector2Int currentIndex = node.index;
@@ -428,32 +455,57 @@ namespace WFMapTools
                 panel.transform.rotation = Quaternion.AngleAxis(90, Vector3.right);
                 panel.transform.localScale = new Vector3(node.data.data.GetLength(0), node.data.data.GetLength(1), 1);
                 mr = panel.GetComponent<MeshRenderer>();
-                textures[currentIndex] = new Texture2D(1024, 1024,TextureFormat.ARGB32,false);
+                textures[currentIndex] = new Texture2D(1024, 1024);//,TextureFormat.ARGB32,false);
                 mr.material = mapManager.groundMaterial;
                 mr.material.mainTexture = textures[currentIndex];
                 renderers[currentIndex] = mr;
             }
-            //textures[currentIndex].SetPixels32(index.x * unit.x, index.y * unit.y,  32,32, BrushManager.Instance.brush["ConerBrush"][1].texture.GetPixels32());
-            for (int i = index.x * unit.x; i < index.x * unit.x + unit.x; i++)
+            Dictionary<byte, byte> cid = new Dictionary<byte, byte>();
+            for (byte i = 0; i < node.data.coners.GetLength(2); i++)
             {
-                for (int j = index.y * unit.y; j < index.y * unit.y + unit.y; j++)
+                if (node.data.coners[index.x, index.y, i] == 0) continue;
+                if (cid.ContainsKey(node.data.coners[index.x, index.y, i]))
                 {
-                    int r = index.x + index.y;
-
-                    //TODO::
-                    float v = node.data.data[index.x, index.y];//Mathf.FloorToInt(node.data.data[index.x, index.y] * 0.2f) * 5;
-
-
-                    textures[currentIndex].SetPixel(i, j, BrushManager.Instance.brush["ConerBrush"][5].texture.GetPixel(i - index.x * unit.x+5*unit.x, j - index.y * unit.y));
-
+                    cid[node.data.coners[index.x, index.y, i]] += (byte)(i+1) ;
+                }
+                else
+                {
+                    cid[node.data.coners[index.x, index.y, i]] = i;
                 }
             }
-            updateTexture[node.index] = true;
+
+            enumraterConerDic = cid.GetEnumerator();
+            Color targetColor = Color.white;
+
+            textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y, BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixels(0,0,32,32));
+            while (enumraterConerDic.MoveNext()) 
+            {
+                for (int i = 0; i < unit.x; i++)
+                {
+                    for (int j = 0; j < unit.y; j++)
+                    {
+                        targetColor = BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value + 1) * unit.x + i, j);
+                        if (targetColor.a != 0 )
+                        {
+                            textures[currentIndex].SetPixel(index.x * unit.x + i, index.y * unit.y + j, BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value + 1) * unit.x + i, j));
+                        }
+                    }
+                }
+                //textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y, BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixels((enumraterConerDic.Current.Value + 1) * unit.x, 0, unit.x, unit.y));
+            }
+           
+
+
+                updateTexture[node.index] = true;
         }
 
         public void UnShow(MapNode node)
         {
         }
+    }
+
+    public class RPGMakerTextureShower { 
+    
     }
 
     public class SpriteShower : IMapShower
@@ -486,11 +538,12 @@ namespace WFMapTools
             else
             {
                 sr = GameObject.Instantiate<GameObject>(Resources.Load<GameObject>("SpriteRenderer")).GetComponent<SpriteRenderer>();
+
                 spriteRnderers.Add(pos, sr);
             }
 
-            sr.transform.position = new Vector3(pos.x + 0.5f, 0.05f, pos.y + 0.5f);
-            sr.transform.rotation = Quaternion.Euler(90, 0, 0);
+            sr.transform.position = new Vector3(pos.x + 0.5f, 0.5f, pos.y + 0.5f);
+            sr.transform.rotation = Quaternion.Euler(0, 0, 0);
 
             if (node.data.data[index.x, index.y] > 200)
             {
