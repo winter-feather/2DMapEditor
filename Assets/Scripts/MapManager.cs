@@ -10,9 +10,10 @@ namespace WFMapTools
         public Dictionary<Vector2Int, MapNode> plant;
         public Vector2Int mapUnit;
         public Material groundMaterial;
+        public bool isAutoCreate;
 
 
-        FogTextureShower groundShower;
+        IMapShower groundShower;
         SpriteShower plantShower;
 
         Vector2Int selectNodeIndex, selectIndex;
@@ -33,7 +34,7 @@ namespace WFMapTools
             //shower = new ColorShower();
             MapNode.perlinNoiseAmplitude = 0.4f;
             MapNode.perlinNoiseOffsetSeed = new Vector2Int(10, 10);
-            groundShower = new FogTextureShower(this);
+            groundShower = new BasicTextureShower(this);//new FogTextureShower(this);
             plantShower = new SpriteShower();
             StartCoroutine(LoadMap());
         }
@@ -54,7 +55,6 @@ namespace WFMapTools
 
             foreach (var item in ground)
             {
-                //item.Value.InitByPerlinNoise();
                 groundShower.InitMapNode(item.Value);
                 //plantShower.InitMapNode(item.Value);
                 yield return null;
@@ -93,12 +93,12 @@ namespace WFMapTools
             {
                 if (isSelected)
                 {
-                    ChangeColor(selectNodeIndex, selectIndex, 7, groundID);
+                    SetData(selectNodeIndex, selectIndex, groundID);
                     //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.up);
-                    ChangeColor(selectNodeIndex, selectIndex - Vector2Int.up,1, groundID);
-                    //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right);
-                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right,3, groundID);
-                    ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right - Vector2Int.up,0, groundID);
+                    //ChangeColor(selectNodeIndex, selectIndex - Vector2Int.up,1, groundID);
+                    ////ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right);
+                    //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right,3, groundID);
+                    //ChangeColor(selectNodeIndex, selectIndex + Vector2Int.right - Vector2Int.up,0, groundID);
                     
 
 
@@ -114,7 +114,7 @@ namespace WFMapTools
         public void FixedUpdate()
         {
             //Test
-            groundShower.Update();
+            (groundShower as BasicTextureShower).Update();
         }
 
         #region UpdateFunc
@@ -135,21 +135,26 @@ namespace WFMapTools
 
 
         #region ActionFunc
-        void ChangeColor(Vector2Int mapIndex, Vector2Int index, byte conerID, byte? colorID = null)
+        void SetData(Vector2Int mapIndex, Vector2Int index, byte? colorID = null)
         {
             PosCheck(ref mapIndex, ref index);
             if (mapIndex.x < 0 || mapIndex.y < 0) return;
+            var node = ground[mapIndex];
             if (!ground.ContainsKey(mapIndex))
             {
                 CreateNewMap(mapIndex);
                 groundShower.InitMapNode(ground[mapIndex]);
             }
-            var node = ground[mapIndex];
-            if (colorID != null)
-            {
-                //node.data.SetData(index, colorID.Value);
-            }
-            node.data.SetConerData(index.x, index.y, conerID, colorID.Value);
+            node.SetData(index.x, index.y, colorID.Value);
+
+
+
+
+
+
+
+            
+            
             groundShower.Show(node, index);
         }
 
@@ -206,11 +211,19 @@ namespace WFMapTools
         public Vector2Int size;
         public Collider contrller;
         public Vector2Int index;
-        public MapData data;
+        MapData data;
+        public MapData Data => data;
         public MapNode(Vector2Int index, MapData data)
         {
             this.index = index;
             this.data = data;
+            this.size = Manager.mapUnit;
+        }
+
+
+
+        public void SetData(int x,int y,byte v) {
+            data.SetData(x, y, v);
         }
 
         public void InitByPerlinNoise()
@@ -271,23 +284,29 @@ namespace WFMapTools
 
         public byte[,] data;
         public byte[,,] coners;
+        public byte[,,] edges;
         public void InitData()
         {
             data = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y];
-            coners = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y, 8];
+            coners = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y, 4];
+            edges = new byte[WFMapTools.MapManager.Instance.mapUnit.x, WFMapTools.MapManager.Instance.mapUnit.y, 4];
         }
 
         public void SetData(int x, int y, byte v)
         {
             data[x, y] = v;
         }
-        public void SetData(Vector2Int index, byte v)
-        {
-            SetData(index.x, index.y, v);
+        //public void SetData(Vector2Int index, byte v)
+        //{
+        //    SetData(index.x, index.y, v);
+        //}
+
+        public void SetConerData(int x, int y, int conerIndex, byte v) {
+            coners[x, y, conerIndex] = v;
         }
 
-        public void SetConerData(int x, int y, int index, byte v) {
-            coners[x, y, index] = v;
+        public void SetEdgesData(int x, int y, int edgeindex, byte v) {
+            coners[x, y, edgeindex] = v;
         }
 
        
@@ -327,9 +346,9 @@ namespace WFMapTools
         public void InitMapNode(MapNode showNode)
         {
             Vector2Int index = Vector2Int.one;
-            for (int i = 0; i < showNode.data.data.GetLength(0); i++)
+            for (int i = 0; i < showNode.size.x; i++)
             {
-                for (int j = 0; j < showNode.data.data.GetLength(1); j++)
+                for (int j = 0; j < showNode.size.y; j++)
                 {
                     index.x = i; index.y = j;
                     Show(showNode, index);
@@ -347,14 +366,14 @@ namespace WFMapTools
         {
             Vector2Int pos = TransToWorldIndex(node.index, index);
             GameObject go;
-            if (!nodes.ContainsKey(pos)) go = nodes[pos];
+            if (nodes.ContainsKey(pos)) go = nodes[pos];
             else
             {
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 nodes.Add(pos, go);
             }
-            go.transform.position = new Vector3(pos.x, node.data.data[index.x, index.y] / 32, pos.y);
-            go.GetComponent<MeshRenderer>().material.color = Color.HSVToRGB(node.data.data[index.x, index.y] / 256f, 0.5f, 0.5f);
+            go.transform.position = new Vector3(pos.x+0.5f,0,  pos.y+0.5f); //node.data.data[index.x, index.y] / 32,
+            go.GetComponent<MeshRenderer>().material.color = node.Data.data[index.x, index.y] == 1 ? Color.red : Color.blue; // new Color(node.data.data[index.x, index.y]/7, node.data.data[index.x, index.y] / 7, node.data.data[index.x, index.y] / 7); //Color.HSVToRGB(node.data.data[index.x, index.y] / 256f, 0.5f, 0.5f);
         }
 
         public void UnShow(MapNode node)
@@ -363,8 +382,7 @@ namespace WFMapTools
         }
     }
 
-    public class FogTextureShower : IMapShower
-    {
+    public class BasicTextureShower : IMapShower {
         Dictionary<Vector2Int, Texture2D> textures;
         Dictionary<Vector2Int, MeshRenderer> renderers;
         Dictionary<Vector2Int, bool> updateTexture;
@@ -372,8 +390,8 @@ namespace WFMapTools
         Dictionary<byte, byte>.Enumerator enumraterConerDic;
         Vector2Int unit;
         MapManager mapManager;
-        //Queue
-        public FogTextureShower(MapManager mapManager)
+
+        public BasicTextureShower(MapManager mapManager)
         {
             textures = new Dictionary<Vector2Int, Texture2D>();
             renderers = new Dictionary<Vector2Int, MeshRenderer>();
@@ -381,12 +399,13 @@ namespace WFMapTools
             this.mapManager = mapManager;
             unit = mapManager.mapUnit;
         }
+
         public void InitMapNode(MapNode showNode)
         {
             Vector2Int index = Vector2Int.zero;
-            for (int i = 0; i < showNode.data.data.GetLength(0); i++)
+            for (int i = 0; i < showNode.size.x; i++)
             {
-                for (int j = 0; j < showNode.data.data.GetLength(1); j++)
+                for (int j = 0; j < showNode.size.y; j++)
                 {
                     index.x = i; index.y = j;
                     Show(showNode, index);
@@ -398,7 +417,6 @@ namespace WFMapTools
         {
             textures[index].Apply(false);
         }
-
 
         public void Update()
         {
@@ -453,7 +471,145 @@ namespace WFMapTools
                 panel.name = node.index.ToString();
                 panel.transform.position = new Vector3(node.index.x * MapManager.Instance.mapUnit.x + 16, 0, node.index.y * MapManager.Instance.mapUnit.y + 16);
                 panel.transform.rotation = Quaternion.AngleAxis(90, Vector3.right);
-                panel.transform.localScale = new Vector3(node.data.data.GetLength(0), node.data.data.GetLength(1), 1);
+                panel.transform.localScale = new Vector3(node.size.x, node.size.y, 1);
+                mr = panel.GetComponent<MeshRenderer>();
+                textures[currentIndex] = new Texture2D(1024, 1024);//,TextureFormat.ARGB32,false);
+                mr.material = mapManager.groundMaterial;
+                mr.material.mainTexture = textures[currentIndex];
+                renderers[currentIndex] = mr;
+            }
+            //Dictionary<byte, byte> cid = new Dictionary<byte, byte>();
+            //for (byte i = 0; i < node.data.coners.GetLength(2); i++)
+            //{
+            //    if (node.data.coners[index.x, index.y, i] == 0) continue;
+            //    if (cid.ContainsKey(node.data.coners[index.x, index.y, i]))
+            //    {
+            //        cid[node.data.coners[index.x, index.y, i]] += (byte)(i + 1);
+            //    }
+            //    else
+            //    {
+            //        cid[node.data.coners[index.x, index.y, i]] = i;
+            //    }
+            //}
+
+            //enumraterConerDic = cid.GetEnumerator();
+            //Color targetColor = Color.white;
+            textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y, BrushManager.Instance.gourndTextures[node.Data.data[index.x, index.y]].GetPixels(15*32, 0, 32, 32));
+            //while (enumraterConerDic.MoveNext())
+            //{
+            //    for (int i = 0; i < unit.x; i++)
+            //    {
+            //        for (int j = 0; j < unit.y; j++)
+            //        {
+            //            targetColor = BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value + 1) * unit.x + i, j);
+            //            if (targetColor.a != 0)
+            //            {
+            //                textures[currentIndex].SetPixel(index.x * unit.x + i, index.y * unit.y + j, BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value + 1) * unit.x + i, j));
+            //            }
+            //        }
+            //    }
+            //    //textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y, BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixels((enumraterConerDic.Current.Value + 1) * unit.x, 0, unit.x, unit.y));
+            //}
+
+
+            updateTexture[node.index] = true;
+        }
+
+        public void UnShow(MapNode node)
+        {
+        }
+    }
+
+    public class FogTextureShower : IMapShower
+    {
+        Dictionary<Vector2Int, Texture2D> textures;
+        Dictionary<Vector2Int, MeshRenderer> renderers;
+        Dictionary<Vector2Int, bool> updateTexture;
+        Dictionary<Vector2Int, bool>.Enumerator enumerater;
+        Dictionary<byte, byte>.Enumerator enumraterConerDic;
+        Vector2Int unit;
+        MapManager mapManager;
+        //Queue
+        public FogTextureShower(MapManager mapManager)
+        {
+            textures = new Dictionary<Vector2Int, Texture2D>();
+            renderers = new Dictionary<Vector2Int, MeshRenderer>();
+            updateTexture = new Dictionary<Vector2Int, bool>();
+            this.mapManager = mapManager;
+            unit = mapManager.mapUnit;
+        }
+        public void InitMapNode(MapNode showNode)
+        {
+            Vector2Int index = Vector2Int.zero;
+            for (int i = 0; i < showNode.size.x; i++)
+            {
+                for (int j = 0; j < showNode.size.y; j++)
+                {
+                    index.x = i; index.y = j;
+                    Show(showNode, index);
+                }
+            }
+            textures[showNode.index].Apply();
+        }
+
+        public void Apply(Vector2Int index)
+        {
+            textures[index].Apply(false);
+        }
+
+        public void Update()
+        {
+            if (updateTexture.Count > 0)
+            {
+                enumerater = updateTexture.GetEnumerator();
+                while (enumerater.MoveNext())
+                {
+                    Apply(enumerater.Current.Key);
+                }
+                updateTexture.Clear();
+            }
+        }
+
+        public void PosCheck(ref Vector2Int nodeIndex, ref Vector2Int index)
+        {
+            if (index.x < 0)
+            {
+                nodeIndex.x -= 1;
+                index.x = unit.x - 1;
+            }
+            else if (index.x > unit.x - 1)
+            {
+                nodeIndex.x += 1;
+                index.x = 0;
+            }
+            if (index.y < 0)
+            {
+                nodeIndex.y -= 1;
+                index.y = unit.y - 1;
+            }
+            else if (index.y > unit.y - 1)
+            {
+                nodeIndex.y += 1;
+                index.y = 0;
+            }
+        }
+
+        public void Show(MapNode node, Vector2Int index)
+        {
+            Vector2Int currentIndex = node.index;
+            Vector2Int unit = MapManager.Instance.mapUnit;
+            MeshRenderer mr;
+            if (renderers.ContainsKey(currentIndex) && renderers[currentIndex] != null)
+            {
+                mr = renderers[node.index];
+            }
+            else
+            {
+                GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                panel.name = node.index.ToString();
+                panel.transform.position = new Vector3(node.index.x * MapManager.Instance.mapUnit.x + 16, 0, node.index.y * MapManager.Instance.mapUnit.y + 16);
+                panel.transform.rotation = Quaternion.AngleAxis(90, Vector3.right);
+                panel.transform.localScale = new Vector3(node.size.x, node.size.y, 1);
                 mr = panel.GetComponent<MeshRenderer>();
                 textures[currentIndex] = new Texture2D(1024, 1024);//,TextureFormat.ARGB32,false);
                 mr.material = mapManager.groundMaterial;
@@ -461,16 +617,16 @@ namespace WFMapTools
                 renderers[currentIndex] = mr;
             }
             Dictionary<byte, byte> cid = new Dictionary<byte, byte>();
-            for (byte i = 0; i < node.data.coners.GetLength(2); i++)
+            for (byte i = 0; i < node.Data.coners.GetLength(2); i++)
             {
-                if (node.data.coners[index.x, index.y, i] == 0) continue;
-                if (cid.ContainsKey(node.data.coners[index.x, index.y, i]))
+                if (node.Data.coners[index.x, index.y, i] == 0) continue;
+                if (cid.ContainsKey(node.Data.coners[index.x, index.y, i]))
                 {
-                    cid[node.data.coners[index.x, index.y, i]] += (byte)(i+1) ;
+                    cid[node.Data.coners[index.x, index.y, i]] += (byte)(i+1) ;
                 }
                 else
                 {
-                    cid[node.data.coners[index.x, index.y, i]] = i;
+                    cid[node.Data.coners[index.x, index.y, i]] = i;
                 }
             }
 
@@ -519,9 +675,9 @@ namespace WFMapTools
         {
 
             Vector2Int index = Vector2Int.one;
-            for (int i = 0; i < showNode.data.data.GetLength(0); i++)
+            for (int i = 0; i < showNode.Data.data.GetLength(0); i++)
             {
-                for (int j = 0; j < showNode.data.data.GetLength(1); j++)
+                for (int j = 0; j < showNode.Data.data.GetLength(1); j++)
                 {
                     index.x = i; index.y = j;
                     Show(showNode, index);
@@ -531,7 +687,7 @@ namespace WFMapTools
 
         public void Show(MapNode node, Vector2Int index)
         {
-            if (node.data.data[index.x, index.y] > 200) return;
+            if (node.Data.data[index.x, index.y] > 200) return;
             Vector2Int pos = TransToWorldIndex(node.index, index);
             SpriteRenderer sr;
             if (spriteRnderers.ContainsKey(pos)) sr = spriteRnderers[pos];
@@ -545,7 +701,7 @@ namespace WFMapTools
             sr.transform.position = new Vector3(pos.x + 0.5f, 0.5f, pos.y + 0.5f);
             sr.transform.rotation = Quaternion.Euler(0, 0, 0);
 
-            if (node.data.data[index.x, index.y] > 200)
+            if (node.Data.data[index.x, index.y] > 200)
             {
                 //Resources.Load<Sprite>("colorBar_0");
             }
