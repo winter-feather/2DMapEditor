@@ -112,6 +112,7 @@ namespace WinterFeather
                 GameObject.Destroy(transform.GetChild(i).gameObject);
             }
         }
+
     }
 
     public class SingleManager<T> : MonoBehaviour where T : Component

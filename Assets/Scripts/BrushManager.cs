@@ -20,6 +20,14 @@ public class BrushManager : SingleMonoManager<BrushManager>
         gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\EdgeConerGround\E"));
         gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\EdgeConerGround\F"));
         gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\EdgeConerGround\G"));
+        gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\EdgeConerGround\H"));
+
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\1"));
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\2"));
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\3"));
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\4"));
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\5"));
+        //gourndTextures.Add(Resources.Load<Texture2D>(@"Brush\FGGround\6"));
     }
     // Start is called before the first frame update
     void Start()
