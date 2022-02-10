@@ -166,7 +166,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mapUnit: {x: 32, y: 32}
   groundMaterial: {fileID: 2100000, guid: f77892b09f680624da1c804e56bc62b4, type: 2}
-  isAutoCreate: 0
+  isAutoCreate: 1
   groundID: 0
 --- !u!114 &81817300
 MonoBehaviour:

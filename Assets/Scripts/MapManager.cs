@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using WinterFeather;
 
 namespace WFMapTools
 {
@@ -11,7 +12,7 @@ namespace WFMapTools
         public Vector2Int mapUnit;
         public Material groundMaterial;
         public bool isAutoCreate;
-
+ 
 
         IMapShower groundShower;
         SpriteShower plantShower;
@@ -51,9 +52,9 @@ namespace WFMapTools
         IEnumerator LoadMap()
         {
             yield return null;
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 12; i++)
             {
-                for (int j = 0; j < 2; j++)
+                for (int j = 0; j < 12; j++)
                 {
                     CreateNewMap(new Vector2Int(i, j));
                     //ground[new Vector2Int(i, j)].InitByPerlinNoise();
@@ -100,7 +101,7 @@ namespace WFMapTools
 
 
             UpdateSelectInfo();
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButton(0))
             {
                 if (isSelected)
                 {
@@ -112,7 +113,7 @@ namespace WFMapTools
         public void FixedUpdate()
         {
             //Test
-            (groundShower as BasicTextureShower).Update();
+            groundShower.ShowerUpdate();//Update();
             //(groundShower as FogTextureShower).Update();
         }
 
@@ -158,10 +159,10 @@ namespace WFMapTools
             SetEdge(mapIndex, dataR, colorID, EdgeLeft);
             SetEdge(mapIndex, dataD, colorID, EdgeUp);
             SetEdge(mapIndex, dataU, colorID, EdgeDown);
-          
-            
-
         }
+
+
+
 
         void SetData(Vector2Int mapIndex, Vector2Int index, byte colorID) {
             PosCheck(ref mapIndex, ref index);
@@ -175,14 +176,15 @@ namespace WFMapTools
                     groundShower.InitMapNode(ground[mapIndex]);
                     var node = ground[mapIndex];
                     node.SetData(index.x, index.y, colorID);
-                    groundShower.Show(node, index);
+                    //
+                    groundShower.MarkShow(node, index); // Show(node, index);
                 }
             }
             else
             {
                 var node = ground[mapIndex];
                 node.SetData(index.x, index.y, colorID);
-                groundShower.Show(node, index);
+                groundShower.MarkShow(node, index);
             }
         }
 
@@ -198,14 +200,14 @@ namespace WFMapTools
                     groundShower.InitMapNode(ground[mapIndex]);
                     var node = ground[mapIndex];
                     node.SetConer(index.x, index.y, conerIndex, colorID);
-                    groundShower.Show(node, index);
+                    groundShower.MarkShow(node, index);
                 }
             }
             else
             {
                 var node = ground[mapIndex];
                 node.SetConer(index.x, index.y, conerIndex, colorID);
-                groundShower.Show(node, index);
+                groundShower.MarkShow(node, index);
             }
 
         }
@@ -222,14 +224,14 @@ namespace WFMapTools
                     groundShower.InitMapNode(ground[mapIndex]);
                     var node = ground[mapIndex];
                     node.SetEdge(index.x, index.y, edgeIndex, colorID);
-                    groundShower.Show(node, index);
+                    groundShower.MarkShow(node, index);
                 }
             }
             else
             {
                 var node = ground[mapIndex];
                 node.SetEdge(index.x, index.y, edgeIndex, colorID);
-                groundShower.Show(node, index);
+                groundShower.MarkShow(node, index);
             }
         }
 
@@ -276,7 +278,33 @@ namespace WFMapTools
 
 
     }
+    struct NodeMark
+    {
+        public Vector2Int nodeIndex, index;
+        public NodeMark(Vector2Int nodeIndex, Vector2Int index)
+        {
+            this.nodeIndex = nodeIndex;
+            this.index = index;
+        }
+    }
 
+    public class DrawOrder {
+       public MapNode node;
+       public Vector2Int index;
+       public byte brushID;
+       public int piceID;
+        public DrawOrder(MapNode node, Vector2Int index, byte brushID, int piceID) {
+            this.node = node;
+            this.index = index;
+            this.brushID = brushID;
+            this.piceID = piceID;
+        }
+
+        public override int GetHashCode()
+        {
+            return brushID;
+        }
+    }
     public class MapNode
     {
         MapManager manager;
@@ -467,6 +495,16 @@ namespace WFMapTools
         {
             throw new System.NotImplementedException();
         }
+
+        public void MarkShow(MapNode node, Vector2Int index)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void ShowerUpdate()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 
     public class BasicTextureShower : IMapShower
@@ -474,21 +512,27 @@ namespace WFMapTools
         Dictionary<Vector2Int, Texture2D> textures;
         Dictionary<Vector2Int, MeshRenderer> renderers;
         Dictionary<Vector2Int, bool> updateTexture;
+        Dictionary<NodeMark, bool> showerMark;
         Dictionary<Vector2Int, bool>.Enumerator enumerater;
         Dictionary<byte, byte>.Enumerator enumraterConerDic;
         Vector2Int unit;
         MapManager mapManager;
         Dictionary<byte, byte> cid;
         Dictionary<byte, byte> eid;
+        BTree<DrawOrder> drawOder = new BTree<DrawOrder>();
+
+
         public BasicTextureShower(MapManager mapManager)
         {
             textures = new Dictionary<Vector2Int, Texture2D>();
             renderers = new Dictionary<Vector2Int, MeshRenderer>();
             updateTexture = new Dictionary<Vector2Int, bool>();
+            showerMark = new Dictionary<NodeMark, bool>();
             cid = new Dictionary<byte, byte>();
             eid = new Dictionary<byte, byte>();
             this.mapManager = mapManager;
             unit = mapManager.mapUnit;
+            drawOder = new BTree<DrawOrder>();
         }
 
         public void InitMapNode(MapNode showNode)
@@ -509,18 +553,7 @@ namespace WFMapTools
             textures[index].Apply(false);
         }
 
-        public void Update()
-        {
-            if (updateTexture.Count > 0)
-            {
-                enumerater = updateTexture.GetEnumerator();
-                while (enumerater.MoveNext())
-                {
-                    Apply(enumerater.Current.Key);
-                }
-                updateTexture.Clear();
-            }
-        }
+
 
         public void PosCheck(ref Vector2Int nodeIndex, ref Vector2Int index)
         {
@@ -548,29 +581,6 @@ namespace WFMapTools
         }
 
 
-        struct MarkIndex {
-            public Vector2Int nodeIndex, index;
-
-
-            public MarkIndex(Vector2Int nodeIndex, Vector2Int index) {
-                this.nodeIndex = nodeIndex;
-                this.index = index;
-            }
-
-            public override bool Equals(object obj)
-            {
-                MarkIndex m = (MarkIndex)obj;
-                return nodeIndex.Equals(m.nodeIndex) && index.Equals(m.index);
-            }
-        }
-
-        Dictionary<MarkIndex, bool> markDic;
-
-        public void ShowMark(MapNode node, Vector2Int index) { 
-        
-        
-        }
-
         public void Show(MapNode node, Vector2Int index)
         {
             Vector2Int currentIndex = node.index;
@@ -581,19 +591,15 @@ namespace WFMapTools
                 CreateNewTexture(node);
             }
             Color[] brush = BrushManager.Instance.gourndTextures[node.Data.data[index.x, index.y]].GetPixels(32*0, 32, 32, 32);
-            textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y,brush);
-
+            //textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y,brush);
+            AddDrawOrder(node,index, node.Data.data[index.x, index.y],16);
             ShowConer(node, index);//node
             ShowEdge(node, index);
 
 
-
-
-
+            StartDraw();
             updateTexture[node.index] = true;
         }
-
-
 
         void ShowConer(MapNode node, Vector2Int index) {
             cid.Clear();
@@ -613,17 +619,7 @@ namespace WFMapTools
             Color targetColor = Color.white;
             while (enumraterConerDic.MoveNext())
             {
-                for (int i = 0; i < unit.x; i++)
-                {
-                    for (int j = 0; j < unit.y; j++)
-                    {
-                        targetColor = BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value) * unit.x + i, j);
-                        if (targetColor.a != 0)
-                        {
-                            textures[node.index].SetPixel(index.x * unit.x + i, index.y * unit.y + j, targetColor);
-                        }
-                    }
-                }
+                AddDrawOrder(node, index, enumraterConerDic.Current.Key, enumraterConerDic.Current.Value);
             }
         }
 
@@ -646,26 +642,39 @@ namespace WFMapTools
             Color targetColor = Color.white;
             while (enumraterConerDic.MoveNext())
             {
-                for (int i = 0; i < unit.x; i++)
+                AddDrawOrder(node, index, enumraterConerDic.Current.Key, enumraterConerDic.Current.Value+16);
+            }
+        }
+
+        public void UnShow(MapNode node)
+        {
+        }
+        void AddDrawOrder(MapNode node, Vector2Int index, byte brushID, int piceID)
+        {
+            drawOder.AddNode(new DrawOrder(node, index, brushID, piceID));
+        }
+
+        public void StartDraw() {
+            drawOder.StartTraverseRToL(a => Draw(a.node, a.index, a.brushID, a.piceID));
+            drawOder.ClearNode();
+        }
+
+        void Draw(MapNode node, Vector2Int index, byte brushID, int piceID) {
+            Color targetColor;
+            int xID = piceID % 16;
+            int yID = piceID / 16;
+            for (int i = 0; i < unit.x; i++)
+            {
+                for (int j = 0; j < unit.y; j++)
                 {
-                    for (int j = 0; j < unit.y; j++)
+                    targetColor = BrushManager.Instance.gourndTextures[brushID].GetPixel(xID * unit.x + i, j + yID * 32);
+                    if (targetColor.a != 0)
                     {
-                        targetColor = BrushManager.Instance.gourndTextures[enumraterConerDic.Current.Key].GetPixel((enumraterConerDic.Current.Value) * unit.x + i, j+32);
-                        if (targetColor.a != 0)
-                        {
-                            textures[node.index].SetPixel(index.x * unit.x + i, index.y * unit.y + j,targetColor);
-                        }
+                        textures[node.index].SetPixel(index.x * unit.x + i, index.y * unit.y + j, targetColor);
                     }
                 }
             }
-
-
         }
-
-            public void UnShow(MapNode node)
-        {
-        }
-
         void CreateNewTexture(MapNode node) {
             Vector2Int currentIndex = node.index;
             GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -678,6 +687,34 @@ namespace WFMapTools
             mr.material = mapManager.groundMaterial;
             mr.material.mainTexture = textures[currentIndex];
             renderers[currentIndex] = mr;
+        }
+
+        public void MarkShow(MapNode node, Vector2Int index)
+        {
+            showerMark[new NodeMark(node.index, index)] = true;
+        }
+
+        public void ShowerUpdate()
+        {
+            foreach (var item in showerMark)
+            {
+                Show(mapManager.ground[item.Key.nodeIndex], item.Key.index);
+            }
+
+            showerMark.Clear();
+
+            
+
+
+            if (updateTexture.Count > 0)
+            {
+                enumerater = updateTexture.GetEnumerator();
+                while (enumerater.MoveNext())
+                {
+                    Apply(enumerater.Current.Key);
+                }
+                updateTexture.Clear();
+            }
         }
     }
 
@@ -819,6 +856,16 @@ namespace WFMapTools
         public void UnShow(MapNode node)
         {
         }
+
+        public void MarkShow(MapNode node, Vector2Int index)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void ShowerUpdate()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 
     public class RPGMakerTextureShower
@@ -882,13 +929,27 @@ namespace WFMapTools
         {
             throw new System.NotImplementedException();
         }
+
+        public void MarkShow(MapNode node, Vector2Int index)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void ShowerUpdate()
+        {
+            throw new System.NotImplementedException();
+        }
     }
     public interface IMapShower
     {
 
         void InitMapNode(MapNode showNode);
         void Show(MapNode node, Vector2Int index);
+
+        void MarkShow(MapNode node, Vector2Int index);
         void UnShow(MapNode node);
+
+        void ShowerUpdate();
     }
 
     public interface IMapContrler

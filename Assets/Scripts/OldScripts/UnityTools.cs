@@ -115,6 +115,114 @@ namespace WinterFeather
 
     }
 
+    public class BTree<T>
+    {
+        BTreeNode<T> root;
+        Stack<BTreeNode<T>> traverseStack;
+
+        public BTree() { 
+            traverseStack = new Stack<BTreeNode<T>>();
+        }
+
+        public BTree(T n):this(){
+            root = new BTreeNode<T>(n);
+        }
+
+        public void AddNode(T n)
+        {
+            if (root==null) root = new BTreeNode<T>(n);
+            else root.AddChild(n);
+        }
+
+        public void ClearNode()
+        {
+            root = null;
+        }
+
+        public void StartTraverseRToL(Action<T> doAction)
+        {
+            traverseStack.Clear();
+            TraverseRToL(doAction, root);
+        }
+
+        void TraverseRToL(Action<T> doAction, BTreeNode<T> node) {
+            if (node.right!=null)
+            {
+                traverseStack.Push(node);
+                TraverseRToL(doAction, node.right);
+            }
+            else
+            {
+                doAction(node.Element);
+                if (node.left == null)
+                {
+                    PopL(doAction);
+                }
+                else
+                {
+                    TraverseRToL(doAction, node.left);
+                }
+            }
+        }
+
+        public void PopL(Action<T> doAction) {
+            if (traverseStack.Count > 0)
+            {
+                BTreeNode<T> node = traverseStack.Pop();
+                doAction(node.Element);
+                if (node.left == null)
+                {
+                    PopL(doAction);
+                }
+                else
+                {
+                    TraverseRToL(doAction, node.left);
+                }
+            }
+        }
+
+    }
+
+    public class BTreeNode<T>
+    {
+        T element;
+        public T Element => element;
+        public BTreeNode<T> left;
+        public BTreeNode<T> right;
+        public BTreeNode<T> parent;
+
+        public BTreeNode(T c)
+        {
+            element = c;
+        }
+
+        public void AddChild(T c)
+        {
+            if (c.GetHashCode() > element.GetHashCode())
+            {
+                if (left == null)
+                {
+                    left = new BTreeNode<T>(c);
+                }
+                else
+                {
+                    left.AddChild(c);
+                }
+            }
+            else
+            {
+                if (right == null)
+                {
+                    right = new BTreeNode<T>(c);
+                }
+                else
+                {
+                    right.AddChild(c);
+                }
+            }
+        }
+    }
+
     public class SingleManager<T> : MonoBehaviour where T : Component
     {
         static T instance;
@@ -136,16 +244,19 @@ namespace WinterFeather
             }
         }
 
-        protected void Awake() {
+        protected void Awake()
+        {
             Init();
         }
 
-        void Init() {
+        void Init()
+        {
             this.gameObject.hideFlags = HideFlags.HideInHierarchy;
             this.hideFlags = HideFlags.HideInInspector;
         }
 
-        void OnDestroy() {
+        void OnDestroy()
+        {
             isDestroy = true;
         }
     }
