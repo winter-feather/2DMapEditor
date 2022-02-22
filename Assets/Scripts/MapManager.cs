@@ -9,6 +9,7 @@ namespace WFMapTools
     {
         public Dictionary<Vector2Int, MapNode> ground;
         public Dictionary<Vector2Int, MapNode> plant;
+
         public Vector2Int mapUnit;
         public Material groundMaterial;
         public bool isAutoCreate;
@@ -52,9 +53,9 @@ namespace WFMapTools
         IEnumerator LoadMap()
         {
             yield return null;
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < 2; i++)
             {
-                for (int j = 0; j < 12; j++)
+                for (int j = 0; j < 2; j++)
                 {
                     CreateNewMap(new Vector2Int(i, j));
                     //ground[new Vector2Int(i, j)].InitByPerlinNoise();
@@ -66,8 +67,15 @@ namespace WFMapTools
             foreach (var item in ground)
             {
                 groundShower.InitMapNode(item.Value);
-                //plantShower.InitMapNode(item.Value);
+
                 yield return null;
+            }
+
+            foreach (var item in plant)
+            {
+                plantShower.InitMapNode(item.Value);
+                yield return null;
+
             }
         }
 
@@ -75,7 +83,6 @@ namespace WFMapTools
         public void CreateNewMap(Vector2Int index)
         {
             MapData data = new MapData();
-
             MapNode mn = new MapNode(index, data);
             mn.index = index;
             ground[index] = mn;
@@ -105,7 +112,8 @@ namespace WFMapTools
             {
                 if (isSelected)
                 {
-                    SetMapNodeData(selectNodeIndex, selectIndex, groundID);
+                    
+                    SetGroundData(selectNodeIndex, selectIndex, groundID);
                 }
             }
         }
@@ -114,6 +122,7 @@ namespace WFMapTools
         {
             //Test
             groundShower.ShowerUpdate();//Update();
+            //plantShower.ShowerUpdate();
             //(groundShower as FogTextureShower).Update();
         }
 
@@ -136,7 +145,7 @@ namespace WFMapTools
 
         #region ActionFunc
         Vector2Int dataLU, dataU, dataRU, dataR, dataRD, dataD, dataLD, dataL,dataC;
-        void SetMapNodeData(Vector2Int mapIndex, Vector2Int index, byte colorID)
+        void SetGroundData(Vector2Int mapIndex, Vector2Int index, byte colorID)
         {
             dataC = index;
             dataLD = index + LD;
@@ -148,23 +157,23 @@ namespace WFMapTools
             dataRD = index + RD;
             dataD = index + Vector2Int.down;
 
-            SetData(mapIndex,dataC,colorID);
+            SetGroundMapData(mapIndex,dataC,colorID);
 
-            SetConer(mapIndex, dataLD, colorID, ConerRU);
-            SetConer(mapIndex, dataLU, colorID, ConerRD);
-            SetConer(mapIndex, dataRD, colorID, ConerLU);
-            SetConer(mapIndex, dataRU, colorID, ConerLD);
+            SetGruondMapConer(mapIndex, dataLD, colorID, ConerRU);
+            SetGruondMapConer(mapIndex, dataLU, colorID, ConerRD);
+            SetGruondMapConer(mapIndex, dataRD, colorID, ConerLU);
+            SetGruondMapConer(mapIndex, dataRU, colorID, ConerLD);
 
-            SetEdge(mapIndex, dataL, colorID, EdgeRight);
-            SetEdge(mapIndex, dataR, colorID, EdgeLeft);
-            SetEdge(mapIndex, dataD, colorID, EdgeUp);
-            SetEdge(mapIndex, dataU, colorID, EdgeDown);
+            SetGroundMapEdge(mapIndex, dataL, colorID, EdgeRight);
+            SetGroundMapEdge(mapIndex, dataR, colorID, EdgeLeft);
+            SetGroundMapEdge(mapIndex, dataD, colorID, EdgeUp);
+            SetGroundMapEdge(mapIndex, dataU, colorID, EdgeDown);
         }
 
 
 
 
-        void SetData(Vector2Int mapIndex, Vector2Int index, byte colorID) {
+        void SetGroundMapData(Vector2Int mapIndex, Vector2Int index, byte colorID) {
             PosCheck(ref mapIndex, ref index);
             if (mapIndex.x < 0 || mapIndex.y < 0) return;
           
@@ -188,7 +197,7 @@ namespace WFMapTools
             }
         }
 
-        void SetConer(Vector2Int mapIndex, Vector2Int index, byte colorID, int conerIndex) {
+        void SetGruondMapConer(Vector2Int mapIndex, Vector2Int index, byte colorID, int conerIndex) {
             PosCheck(ref mapIndex, ref index);
             if (mapIndex.x < 0 || mapIndex.y < 0) return;
           
@@ -212,7 +221,7 @@ namespace WFMapTools
 
         }
 
-        void SetEdge(Vector2Int mapIndex, Vector2Int index, byte colorID, int edgeIndex) {
+        void SetGroundMapEdge(Vector2Int mapIndex, Vector2Int index, byte colorID, int edgeIndex) {
             PosCheck(ref mapIndex, ref index);
             if (mapIndex.x < 0 || mapIndex.y < 0) return;
 
@@ -262,7 +271,6 @@ namespace WFMapTools
                 nodeIndex.x += 1;
                 index.x = 0;
             }
-
             if (index.y < 0)
             {
                 nodeIndex.y -= 1;
@@ -347,9 +355,6 @@ namespace WFMapTools
                 for (int j = 0; j < data.data.GetLength(1); j++)
                 {
                     data.SetData(i, j, (byte)(Mathf.PerlinNoise((i + offsetX + perlinNoiseOffsetSeed.x) * perlinNoiseAmplitude, (j + offsetY + perlinNoiseOffsetSeed.y) * perlinNoiseAmplitude) * 256f));
-
-
-
                     //data.data[i, j] = (byte)(Mathf.PerlinNoise((i + offsetX + perlinNoiseOffsetSeed.x) * perlinNoiseAmplitude, (j + offsetY + perlinNoiseOffsetSeed.y) * perlinNoiseAmplitude) * 256f);
                 }
             }
@@ -387,9 +392,6 @@ namespace WFMapTools
 
     public class MapData
     {
-
-
-
         public MapData()
         {
             InitData();
@@ -515,24 +517,27 @@ namespace WFMapTools
         Dictionary<NodeMark, bool> showerMark;
         Dictionary<Vector2Int, bool>.Enumerator enumerater;
         Dictionary<byte, byte>.Enumerator enumraterConerDic;
+        List<Texture2D> brush;
+
         Vector2Int unit;
         MapManager mapManager;
         Dictionary<byte, byte> cid;
         Dictionary<byte, byte> eid;
         BTree<DrawOrder> drawOder = new BTree<DrawOrder>();
-
-
+   
         public BasicTextureShower(MapManager mapManager)
         {
             textures = new Dictionary<Vector2Int, Texture2D>();
             renderers = new Dictionary<Vector2Int, MeshRenderer>();
             updateTexture = new Dictionary<Vector2Int, bool>();
             showerMark = new Dictionary<NodeMark, bool>();
+            
             cid = new Dictionary<byte, byte>();
             eid = new Dictionary<byte, byte>();
             this.mapManager = mapManager;
             unit = mapManager.mapUnit;
             drawOder = new BTree<DrawOrder>();
+            brush = BrushManager.Instance.gourndTextures;
         }
 
         public void InitMapNode(MapNode showNode)
@@ -590,12 +595,11 @@ namespace WFMapTools
             {
                 CreateNewTexture(node);
             }
-            Color[] brush = BrushManager.Instance.gourndTextures[node.Data.data[index.x, index.y]].GetPixels(32*0, 32, 32, 32);
-            //textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y,brush);
+            //Color[] c = brush[node.Data.data[index.x, index.y]].GetPixels(32*0, 32, 32, 32);
+            //textures[currentIndex].SetPixels(index.x * unit.x, index.y * unit.y, unit.x, unit.y,c);
             AddDrawOrder(node,index, node.Data.data[index.x, index.y],16);
             ShowConer(node, index);//node
             ShowEdge(node, index);
-
 
             StartDraw();
             updateTexture[node.index] = true;
@@ -667,7 +671,7 @@ namespace WFMapTools
             {
                 for (int j = 0; j < unit.y; j++)
                 {
-                    targetColor = BrushManager.Instance.gourndTextures[brushID].GetPixel(xID * unit.x + i, j + yID * 32);
+                    targetColor = brush[brushID].GetPixel(xID * unit.x + i, j + yID * 32);
                     if (targetColor.a != 0)
                     {
                         textures[node.index].SetPixel(index.x * unit.x + i, index.y * unit.y + j, targetColor);
@@ -702,9 +706,6 @@ namespace WFMapTools
             }
 
             showerMark.Clear();
-
-            
-
 
             if (updateTexture.Count > 0)
             {
@@ -903,11 +904,11 @@ namespace WFMapTools
             else
             {
                 sr = GameObject.Instantiate<GameObject>(Resources.Load<GameObject>("SpriteRenderer")).GetComponent<SpriteRenderer>();
-
+                sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
                 spriteRnderers.Add(pos, sr);
             }
 
-            sr.transform.position = new Vector3(pos.x + 0.5f, 0.5f, pos.y + 0.5f);
+            sr.transform.position = new Vector3(pos.x + 0.5f, 0, pos.y + 0.5f);
             sr.transform.rotation = Quaternion.Euler(0, 0, 0);
 
             if (node.Data.data[index.x, index.y] > 200)
